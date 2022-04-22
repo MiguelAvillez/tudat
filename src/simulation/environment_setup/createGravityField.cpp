@@ -419,6 +419,14 @@ std::shared_ptr< gravitation::GravityFieldModel > createGravityFieldModel(
         }
         else
         {
+            std::cerr << "Before creating PolyhedronGravityField in createGravityFieldModel" << std::endl;
+
+            std::cerr << "T2c: " << polyhedronFieldSettings->getGravitationalParameter() << std::endl;
+            std::cerr << "T3c: " << polyhedronFieldSettings->getVolume() << std::endl;
+            std::cerr << "T4c: " << polyhedronFieldSettings->getVerticesCoordinates() << std::endl;
+            std::cerr << "T5c: " << polyhedronFieldSettings->getVerticesDefiningEachFacet() << std::endl;
+            std::cerr << "T6c: " << polyhedronFieldSettings->getVerticesDefiningEachEdge() << std::endl;
+
             // Create and initialize polyhedron gravity field model.
             gravityFieldModel = std::make_shared< PolyhedronGravityField >(
                     polyhedronFieldSettings->getGravitationalParameter(),
@@ -429,6 +437,13 @@ std::shared_ptr< gravitation::GravityFieldModel > createGravityFieldModel(
                     polyhedronFieldSettings->getFacetDyads(),
                     polyhedronFieldSettings->getEdgeDyads(),
                     polyhedronFieldSettings->getAssociatedReferenceFrame() );
+
+            std::cerr << "After creating PolyhedronGravityField in createGravityFieldModel" << std::endl;
+            std::cerr << "T2d: " << polyhedronFieldSettings->getGravitationalParameter() << std::endl;
+            std::cerr << "T3d: " << polyhedronFieldSettings->getVolume() << std::endl;
+            std::cerr << "T4d: " << polyhedronFieldSettings->getVerticesCoordinates() << std::endl;
+            std::cerr << "T5d: " << polyhedronFieldSettings->getVerticesDefiningEachFacet() << std::endl;
+            std::cerr << "T6d: " << polyhedronFieldSettings->getVerticesDefiningEachEdge() << std::endl;
         }
         break;
     }

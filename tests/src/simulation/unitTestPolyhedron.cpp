@@ -57,6 +57,7 @@ BOOST_AUTO_TEST_CASE( test_polyhedron_propagation )
         20.000000000000000000e+00, 0.000000000000000000e+00, 10.000000000000000000e+00,
         0.000000000000000000e+00, 10.000000000000000000e+00, 10.000000000000000000e+00,
         20.000000000000000000e+00, 10.000000000000000000e+00, 10.000000000000000000e+00;
+    verticesCoordinates = verticesCoordinates * 1e3;
     verticesDefiningEachFacet <<
         2, 1, 0,
         1, 2, 3,
@@ -73,7 +74,7 @@ BOOST_AUTO_TEST_CASE( test_polyhedron_propagation )
 
     // Set simulation time settings.
     const double simulationStartEpoch = 0.0;
-    const double simulationEndEpoch = tudat::physical_constants::JULIAN_DAY;
+    const double simulationEndEpoch = 150.0; //tudat::physical_constants::JULIAN_DAY;
     const double environmentTimeBuffer = 0.0;
 
     // Create bodies in simulation
@@ -126,7 +127,7 @@ BOOST_AUTO_TEST_CASE( test_polyhedron_propagation )
             std::make_shared< TranslationalStatePropagatorSettings< double > >
             ( centralBodies, accelerationModelMap, bodiesToPropagate, asterixInitialState, simulationEndEpoch );
 
-    const double fixedStepSize = 10.0;
+    const double fixedStepSize = 30.0;
     std::shared_ptr< IntegratorSettings< > > integratorSettings =
             std::make_shared< IntegratorSettings< > > ( rungeKutta4, 0.0, fixedStepSize );
 

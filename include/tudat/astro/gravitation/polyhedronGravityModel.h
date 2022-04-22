@@ -95,7 +95,7 @@ public:
         polyhedronCache_( std::make_shared< PolyhedronGravityCache >(
                 aVerticesCoordinatesMatrix, aVerticesDefiningEachFacetMatrix, aVerticesDefiningEachEdgeMatrix) )
     {
-        std::cerr << "Created PolyhedronGravitationalAccelerationModel" << std::endl;
+        std::cerr << "Created PolyhedronGravitationalAccelerationModel (constructor 1)" << std::endl;
     }
 
     //! Constructor taking functions for position of bodies, and parameters of polyhedron.
@@ -149,7 +149,15 @@ public:
         polyhedronCache_( std::make_shared< PolyhedronGravityCache >(
                 verticesCoordinatesFunction(), verticesDefiningEachFacetFunction(),
                 verticesDefiningEachEdgeFunction() ) )
-    { }
+    {
+        std::cerr << "Created PolyhedronGravitationalAccelerationModel (constructor 2)" << std::endl;
+
+        std::cerr << "T2h: " << gravitationalParameterFunction( ) << std::endl;
+        std::cerr << "T3h: " << volumeFunction( ) << std::endl;
+        std::cerr << "T4h: " << verticesCoordinatesFunction() << std::endl;
+        std::cerr << "T5h: " << verticesDefiningEachFacetFunction() << std::endl;
+        std::cerr << "T6h: " << verticesDefiningEachEdgeFunction() << std::endl;
+    }
 
     //! Update class members.
     /*!
@@ -172,6 +180,12 @@ public:
             currentRelativePosition_ = rotationToIntegrationFrame_.inverse( ) * currentInertialRelativePosition_;
 
             polyhedronCache_->update( currentRelativePosition_ );
+
+            std::cerr << "T2i: " << gravitationalParameterFunction_() << std::endl;
+            std::cerr << "T3i: " << volumeFunction_() << std::endl;
+            std::cerr << "T4i: " << getVerticesCoordinates_() << std::endl;
+            std::cerr << "T5i: " << getVerticesDefiningEachFacet_() << std::endl;
+            std::cerr << "T6i: " << getVerticesDefiningEachEdge_() << std::endl;
 
             currentAcceleration_ = calculatePolyhedronGradientOfGravitationalPotential(
                     gravitationalParameterFunction_() / volumeFunction_(),

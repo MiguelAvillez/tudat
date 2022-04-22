@@ -145,6 +145,8 @@ public:
      */
     StateType computeStateDerivative( const TimeType time, const StateType& state )
     {
+        std::cerr << "Entering computeStateDerivative: " << time << std::endl;
+
         if( !( time == time ) )
         {
             throw std::invalid_argument( "Error when computing system state derivative. Input time is NaN" );
@@ -244,6 +246,7 @@ public:
         functionEvaluationCounter_++;
         cumulativeFunctionEvaluationCounter_[ time ] = functionEvaluationCounter_;
 
+        std::cerr << "Exiting computeStateDerivative" << std::endl;
         return stateDerivative_;
 
     }

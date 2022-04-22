@@ -453,6 +453,7 @@ unset(RELATIVE_INSTALL_CMAKE_DIR)
 
 SET(GCC_COVERAGE_COMPILE_FLAGS "-fsanitize=address -fsanitize=undefined -Wall -Wextra")
 add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
 # SET(GCC_COVERAGE_LINK_FLAGS    "-lgcov")
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
 #SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")

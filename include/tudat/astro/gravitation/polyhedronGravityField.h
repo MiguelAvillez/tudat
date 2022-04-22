@@ -160,8 +160,22 @@ public:
         edgeDyads_( edgeDyads ),
         fixedReferenceFrame_( fixedReferenceFrame )
     {
+        std::cerr << "Entering PolyhedronGravityField constructor" << std::endl;
+        std::cerr << "T2k: " << gravitationalParameter_ << std::endl;
+        std::cerr << "T3k: " << volume_ << std::endl;
+        std::cerr << "T4k: " << verticesCoordinates_ << std::endl;
+        std::cerr << "T5k: " << verticesDefiningEachFacet_ << std::endl;
+        std::cerr << "T6k: " << verticesDefiningEachEdge_ << std::endl;
+
         polyhedronGravityCache_ = std::make_shared< PolyhedronGravityCache >(
                 verticesCoordinates_, verticesDefiningEachFacet_, verticesDefiningEachEdge_);
+
+        std::cerr << "Exiting PolyhedronGravityField constructor" << std::endl;
+        std::cerr << "T2l: " << gravitationalParameter_ << std::endl;
+        std::cerr << "T3l: " << volume_ << std::endl;
+        std::cerr << "T4l: " << verticesCoordinates_ << std::endl;
+        std::cerr << "T5l: " << verticesDefiningEachFacet_ << std::endl;
+        std::cerr << "T6l: " << verticesDefiningEachEdge_ << std::endl;
     }
 
     virtual double getGravitationalPotential( const Eigen::Vector3d& bodyFixedPosition )

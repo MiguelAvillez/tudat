@@ -14,6 +14,8 @@
 
 #include <boost/make_shared.hpp>
 #include <boost/bind/bind.hpp>
+#include <tudat/simulation/environment_setup/createGravityField.h>
+
 using namespace boost::placeholders;
 
 #include "tudat/astro/aerodynamics/flightConditions.h"
@@ -93,7 +95,19 @@ std::shared_ptr< basic_astrodynamics::AccelerationModel< Eigen::Vector3d > > cre
                     isCentralBody );
         break;
     case polyhedron_gravity:
+    {
         std::cerr << "Before creating direct polyhedron acceleration" << std::endl;
+
+        std::shared_ptr< PolyhedronGravityField > polyhedronGravityField =
+                std::dynamic_pointer_cast< PolyhedronGravityField >(
+                        bodyExertingAcceleration->getGravityFieldModel( ));
+
+        std::cerr << "T2g: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+        std::cerr << "T3g: " << polyhedronGravityField->getVolume( ) << std::endl;
+        std::cerr << "T4g: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+        std::cerr << "T5g: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+        std::cerr << "T6g: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+
         accelerationModel = createPolyhedronGravityAcceleration(
                 bodyUndergoingAcceleration,
                 bodyExertingAcceleration,
@@ -101,6 +115,7 @@ std::shared_ptr< basic_astrodynamics::AccelerationModel< Eigen::Vector3d > > cre
                 nameOfBodyExertingAcceleration,
                 sumGravitationalParameters);
         std::cerr << "After creating direct polyhedron acceleration" << std::endl;
+    }
         break;
     default:
 
@@ -163,19 +178,42 @@ std::shared_ptr< basic_astrodynamics::AccelerationModel< Eigen::Vector3d > > cre
                             accelerationSettings, "", 1 ) ), nameOfCentralBody );
         break;
     case polyhedron_gravity:
-        std::cerr << "Before creating 3rd body polyhedron gravity" << std::endl;
+    {
+        std::cerr << "bBefore creating 3rd body polyhedron gravity" << std::endl;
+
+//        std::shared_ptr< PolyhedronGravityFieldSettings > polyhedronFieldSettings =
+//                std::dynamic_pointer_cast< PolyhedronGravityFieldSettings >(accelerationSettings);
+//
+//        std::cerr << "T2e: " << polyhedronFieldSettings->getGravitationalParameter( ) << std::endl;
+//        std::cerr << "T3e: " << polyhedronFieldSettings->getVolume( ) << std::endl;
+//        std::cerr << "T4e: " << polyhedronFieldSettings->getVerticesCoordinates( ) << std::endl;
+//        std::cerr << "T5e: " << polyhedronFieldSettings->getVerticesDefiningEachFacet( ) << std::endl;
+//        std::cerr << "T6e: " << polyhedronFieldSettings->getVerticesDefiningEachEdge( ) << std::endl;
+
+        std::shared_ptr< PolyhedronGravityField > polyhedronGravityField =
+                std::dynamic_pointer_cast< PolyhedronGravityField >(
+                        bodyExertingAcceleration->getGravityFieldModel( ));
+
+        std::cerr << "T2e: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+        std::cerr << "T3e: " << polyhedronGravityField->getVolume( ) << std::endl;
+        std::cerr << "T4e: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+        std::cerr << "T5e: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+        std::cerr << "T6e: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+
         accelerationModel = std::make_shared< ThirdBodyPolyhedronGravitationalAccelerationModel >(
                 std::dynamic_pointer_cast< PolyhedronGravitationalAccelerationModel >(
-                    createDirectGravitationalAcceleration(
-                        bodyUndergoingAcceleration, bodyExertingAcceleration,
-                        nameOfBodyUndergoingAcceleration, nameOfBodyExertingAcceleration,
-                        accelerationSettings, "", 0 ) ),
+                        createDirectGravitationalAcceleration(
+                                bodyUndergoingAcceleration, bodyExertingAcceleration,
+                                nameOfBodyUndergoingAcceleration, nameOfBodyExertingAcceleration,
+                                accelerationSettings, "", 0)),
                 std::dynamic_pointer_cast< PolyhedronGravitationalAccelerationModel >(
-                    createDirectGravitationalAcceleration(
-                        centralBody, bodyExertingAcceleration, nameOfCentralBody, nameOfBodyExertingAcceleration,
-                        accelerationSettings, "", 1 ) ),
-                nameOfCentralBody );
+                        createDirectGravitationalAcceleration(
+                                centralBody, bodyExertingAcceleration, nameOfCentralBody,
+                                nameOfBodyExertingAcceleration,
+                                accelerationSettings, "", 1)),
+                nameOfCentralBody);
         std::cerr << "After creating 3rd body polyhedron gravity" << std::endl;
+    }
         break;
     default:
 
@@ -208,6 +246,8 @@ std::shared_ptr< AccelerationModel< Eigen::Vector3d > > createGravitationalAccel
 
     if( nameOfCentralBody == nameOfBodyExertingAcceleration || ephemerides::isFrameInertial( nameOfCentralBody ) )
     {
+        std::cerr << "In createGravitationalAccelerationModel, before calling createDirectGravitationalAcceleration" << std::endl;
+
         accelerationModelPointer = createDirectGravitationalAcceleration( bodyUndergoingAcceleration,
                                                                           bodyExertingAcceleration,
                                                                           nameOfBodyUndergoingAcceleration,
@@ -217,6 +257,17 @@ std::shared_ptr< AccelerationModel< Eigen::Vector3d > > createGravitationalAccel
     }
     else
     {
+        std::cerr << "In createGravitationalAccelerationModel, before calling createThirdBodyGravitationalAcceleration" << std::endl;
+        std::shared_ptr< PolyhedronGravityField > polyhedronGravityField =
+            std::dynamic_pointer_cast< PolyhedronGravityField >(
+                    bodyExertingAcceleration->getGravityFieldModel( ));
+
+        std::cerr << "T2m: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+        std::cerr << "T3m: " << polyhedronGravityField->getVolume( ) << std::endl;
+        std::cerr << "T4m: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+        std::cerr << "T5m: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+        std::cerr << "T6m: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+
         accelerationModelPointer = createThirdBodyGravitationalAcceleration( bodyUndergoingAcceleration,
                                                                              bodyExertingAcceleration,
                                                                              centralBody,
@@ -558,6 +609,12 @@ createPolyhedronGravityAcceleration(
             std::dynamic_pointer_cast< PolyhedronGravityField >(
                 bodyExertingAcceleration->getGravityFieldModel( ) );
 
+    std::cerr << "T2b: " << polyhedronGravityField->getGravitationalParameter() << std::endl;
+    std::cerr << "T3b: " << polyhedronGravityField->getVolume() << std::endl;
+    std::cerr << "T4b: " << polyhedronGravityField->getVerticesCoordinates() << std::endl;
+    std::cerr << "T5b: " << polyhedronGravityField->getVerticesDefiningEachFacet() << std::endl;
+    std::cerr << "T6b: " << polyhedronGravityField->getVerticesDefiningEachEdge() << std::endl;
+
     std::cerr << "After creating polyhedron gravity field in createPolyhedronGravityAcceleration" << std::endl;
 
     std::shared_ptr< RotationalEphemeris> rotationalEphemeris = bodyExertingAcceleration->getRotationalEphemeris( );
@@ -628,6 +685,24 @@ createPolyhedronGravityAcceleration(
                 std::bind( &PolyhedronGravityField::getEdgeDyads, polyhedronGravityField );
 
         std::cerr << "Before creating acceleration model in createPolyhedronGravityAcceleration" << std::endl;
+
+        std::cerr << "T1" << std::endl;
+        std::function< void( Eigen::Vector3d& ) > t1 = std::bind( &Body::getPositionByReference, bodyUndergoingAcceleration, std::placeholders::_1 );
+//        std::cerr << t1() << std::endl;
+        std::cerr << "T2: " << gravitationalParameterFunction() << std::endl;
+        std::cerr << "T3: " << volumeFunction() << std::endl;
+        std::cerr << "T4: " << verticesCoordinatesFunction() << std::endl;
+        std::cerr << "T5: " << verticesDefiningEachFacetFunction() << std::endl;
+        std::cerr << "T6: " << verticesDefiningEachEdgeFunction() << std::endl;
+        std::cerr << "T7: " << facetDyadsFunction().at(2) << std::endl;
+        std::cerr << "T8: " << edgeDyadsFunction().at(2) << std::endl;
+        std::cerr << "T9: " << std::endl;
+        std::function< void( Eigen::Vector3d& ) > t9 =  std::bind( &Body::getPositionByReference, bodyExertingAcceleration, std::placeholders::_1 );
+//        std::cerr << t9() << std::endl;
+        std::cerr << "T10: " << std::endl;
+        std::function< Eigen::Quaterniond( ) > t10 = std::bind( &Body::getCurrentRotationToGlobalFrame, bodyExertingAcceleration );
+//        std::cerr << t10() << std::endl;
+        std::cerr << "T11: " << useCentralBodyFixedFrame << std::endl;
 
         // Create acceleration object.
         accelerationModel =
@@ -1524,10 +1599,23 @@ std::shared_ptr< AccelerationModel< Eigen::Vector3d > > createAccelerationModel(
                     centralBody, nameOfCentralBody );
         break;
     case polyhedron_gravity:
+    {
+        std::cerr << "In createAccelerationModel, before calling createGravitationalAccelerationModel" << std::endl;
+        std::shared_ptr< PolyhedronGravityField > polyhedronGravityField =
+                std::dynamic_pointer_cast< PolyhedronGravityField >(
+                        bodyExertingAcceleration->getGravityFieldModel( ));
+
+        std::cerr << "T2n: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+        std::cerr << "T3n: " << polyhedronGravityField->getVolume( ) << std::endl;
+        std::cerr << "T4n: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+        std::cerr << "T5n: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+        std::cerr << "T6n: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+
         accelerationModelPointer = createGravitationalAccelerationModel(
-                    bodyUndergoingAcceleration, bodyExertingAcceleration, accelerationSettings,
-                    nameOfBodyUndergoingAcceleration, nameOfBodyExertingAcceleration,
-                    centralBody, nameOfCentralBody );
+                bodyUndergoingAcceleration, bodyExertingAcceleration, accelerationSettings,
+                nameOfBodyUndergoingAcceleration, nameOfBodyExertingAcceleration,
+                centralBody, nameOfCentralBody);
+    }
         break;
     case aerodynamic:
         accelerationModelPointer = createAerodynamicAcceleratioModel(

@@ -212,6 +212,19 @@ SystemOfBodies createSystemOfBodies(
                                                  orderedBodySettings.at( i ).first, bodyList,
                                                  orderedBodySettings.at( i ).second->gravityFieldVariationSettings ) );
         }
+
+        std::shared_ptr< PolyhedronGravityField > polyhedronGravityField =
+                std::dynamic_pointer_cast< PolyhedronGravityField >(
+                        bodyList.at( orderedBodySettings.at( i ).first )->getGravityFieldModel( ));
+
+        if ( polyhedronGravityField != nullptr )
+        {
+            std::cerr << "T2p: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+            std::cerr << "T3p: " << polyhedronGravityField->getVolume( ) << std::endl;
+            std::cerr << "T4p: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+            std::cerr << "T5p: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+            std::cerr << "T6p: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+        }
     }
 
     for( unsigned int i = 0; i < orderedBodySettings.size( ); i++ )

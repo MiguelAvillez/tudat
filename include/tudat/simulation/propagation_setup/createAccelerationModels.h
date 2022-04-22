@@ -15,6 +15,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <tudat/astro/gravitation/polyhedronGravityField.h>
 
 #include "tudat/astro/basic_astro/accelerationModel.h"
 #include "tudat/astro/gravitation/centralGravityModel.h"
@@ -609,6 +610,19 @@ inline basic_astrodynamics::AccelerationMap createAccelerationModelsMap(
 
             if( !( accelerationsForBody.at( i ).second->accelerationType_ == basic_astrodynamics::thrust_acceleration ) )
             {
+                if ( accelerationsForBody.at( i ).second->accelerationType_ == basic_astrodynamics::polyhedron_gravity )
+                {
+                    std::shared_ptr< gravitation::PolyhedronGravityField > polyhedronGravityField =
+                        std::dynamic_pointer_cast< gravitation::PolyhedronGravityField >(
+                        bodies.at( bodyExertingAcceleration )->getGravityFieldModel( ) );
+
+                std::cerr << "T2o: " << polyhedronGravityField->getGravitationalParameter( ) << std::endl;
+                std::cerr << "T3o: " << polyhedronGravityField->getVolume( ) << std::endl;
+                std::cerr << "T4o: " << polyhedronGravityField->getVerticesCoordinates( ) << std::endl;
+                std::cerr << "T5o: " << polyhedronGravityField->getVerticesDefiningEachFacet( ) << std::endl;
+                std::cerr << "T6o: " << polyhedronGravityField->getVerticesDefiningEachEdge( ) << std::endl;
+                }
+
                 currentAcceleration = createAccelerationModel( bodies.at( bodyUndergoingAcceleration ),
                                                                bodies.at( bodyExertingAcceleration ),
                                                                accelerationsForBody.at( i ).second,
