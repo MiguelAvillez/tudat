@@ -41,12 +41,14 @@ HodographicShapingLeg::HodographicShapingLeg(
     fullCoefficientsNormalVelocityFunction_ = Eigen::VectorXd::Zero(numberOfFreeNormalCoefficients_ + 3 );
     fullCoefficientsAxialVelocityFunction_ = Eigen::VectorXd::Zero(numberOfFreeAxialCoefficients_ + 3 );
 
+    std::cerr << "Before creating velocity functions" << std::endl;
     radialVelocityFunction_ = std::make_shared< shape_based_methods::CompositeFunctionHodographicShaping >(
                 radialVelocityFunctionComponents, fullCoefficientsRadialVelocityFunction_ );
     normalVelocityFunction_ = std::make_shared< shape_based_methods::CompositeFunctionHodographicShaping >(
                 normalVelocityFunctionComponents, fullCoefficientsNormalVelocityFunction_ );
     axialVelocityFunction_ = std::make_shared< shape_based_methods::CompositeFunctionHodographicShaping >(
                 axialVelocityFunctionComponents, fullCoefficientsAxialVelocityFunction_ );
+    std::cerr << "After creating velocity functions" << std::endl;
 
     // Define numerical quadrature settings, required to compute the current polar angle and final deltaV.
     quadratureSettings_ = std::make_shared< numerical_quadrature::GaussianQuadratureSettings< double > >( 0.0, 64 );

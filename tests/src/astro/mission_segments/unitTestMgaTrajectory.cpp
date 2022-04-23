@@ -372,7 +372,6 @@ BOOST_AUTO_TEST_CASE( testMgaHodographicShapingSingleLegWithShapingCoefficients 
         // TODO: Check if Gondelach's thesis has some transfer that uses free shaping parameters
         double expectedDeltaV = 172313.0;
         BOOST_CHECK_SMALL(std::fabs(transferTrajectory->getTotalDeltaV( ) - expectedDeltaV), 1.0);
-        std::cout << "Delta V: " << transferTrajectory->getTotalDeltaV( ) << std::endl;
 
         // Check continuity of velocity between legs and nodes
         for( int i = 0; i < transferTrajectory->getNumberOfLegs(); i++ )
@@ -472,13 +471,14 @@ BOOST_AUTO_TEST_CASE( testMgaHodographicShapingSingleLegWithoutFreeShapingCoeffi
                 createBaseFunctionHodographicShaping( scaledPowerSine, thirdAxialVelocityBaseFunctionSettings ) );
 
 
-    for( unsigned int creationType = 0; creationType < 1; creationType++ ) {
+    for( unsigned int creationType = 0; creationType < 2; creationType++ ) {
         // Create leg and nodes settings
         std::vector< std::shared_ptr< TransferLegSettings > > transferLegSettings;
         std::vector< std::shared_ptr< TransferNodeSettings > > transferNodeSettings;
 
         if ( creationType == 0 )
         {
+            std::cerr << "Creation type 0 ##################" << std::endl;
             transferLegSettings.resize(bodyOrder.size( ) - 1);
             transferLegSettings[0] = hodographicShapingLeg(
                     radialVelocityFunctionComponents, normalVelocityFunctionComponents, axialVelocityFunctionComponents);
@@ -493,11 +493,24 @@ BOOST_AUTO_TEST_CASE( testMgaHodographicShapingSingleLegWithoutFreeShapingCoeffi
         }
         else if ( creationType == 1 )
         {
+            std::cerr << "Creation type 1 ##################" << std::endl;
+            getMgaTransferTrajectorySettingsWithHodographicShapingThrust(
+                    transferLegSettings, transferNodeSettings, bodyOrder, radialVelocityFunctionComponents,
+                    normalVelocityFunctionComponents, axialVelocityFunctionComponents,
+                    std::make_pair(std::numeric_limits< double >::infinity( ), 0.0),
+                    std::make_pair(std::numeric_limits< double >::infinity( ), 0.0) );
 
+            std::shared_ptr< HodographicShapingLegSettings > hodographicShapingLegSettings =
+                std::dynamic_pointer_cast< HodographicShapingLegSettings >( transferLegSettings.at(0) );
+
+            std::cerr << "Test out: " << hodographicShapingLegSettings->radialVelocityFunctionComponents_.size() << " " <<
+                hodographicShapingLegSettings->numberOfFreeRadialCoefficients_ << std::endl;
         }
-
+        std::cerr << "Before creating transfer trajectory" << std::endl;
+        std::cerr << "Test before creating transfer trajectory: " << radialVelocityFunctionComponents.size() << std::endl;
         std::shared_ptr< TransferTrajectory > transferTrajectory = createTransferTrajectory(
                 bodies, transferLegSettings, transferNodeSettings, bodyOrder, "Sun");
+        std::cerr << "After creating transfer trajectory" << std::endl;
 
         // Create list of node times
         std::vector< double > nodeTimes;
