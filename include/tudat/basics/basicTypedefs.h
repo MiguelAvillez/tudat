@@ -41,6 +41,12 @@ typedef Eigen::Matrix< double, 7, 1 > Vector7d;
 //! Typedef for Vector7ld.
 typedef Eigen::Matrix< long double, 7, 1 > Vector7ld;
 
+//! Typedef for Vector8d.
+typedef Eigen::Matrix< double, 8, 1 > Vector8d;
+
+//! Typedef for Vector8ld.
+typedef Eigen::Matrix< long double, 8, 1 > Vector8ld;
+
 //! Typedef for Matrix6i.
 typedef Eigen::Matrix< int, 6, 6 > Matrix6i;
 

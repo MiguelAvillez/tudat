@@ -41,7 +41,16 @@ enum TranslationalPropagatorType
     gauss_modified_equinoctial = 3,
     unified_state_model_quaternions = 4,
     unified_state_model_modified_rodrigues_parameters = 5,
-    unified_state_model_exponential_map = 6
+    unified_state_model_exponential_map = 6,
+    stabilized_cowell = 7
+};
+
+// Enum listing the time types that can be integrated by regularized propagators
+enum RegularizedPropagatorTimeType
+{
+    physical_time,
+    constant_time_element,
+    linear_time_element
 };
 
 // Function to remove the central gravity acceleration from an AccelerationMap

@@ -126,6 +126,19 @@ enum ExponentialMapElementIndices
     shadowFlagExponentialMapIndex = 3
 };
 
+//! Stabilized cowell indices.
+enum StabilizedCowellElementIndices
+{
+    stabilizedCowellXCartesianPositionIndex = 0,
+    stabilizedCowellYCartesianPositionIndex = 1,
+    stabilizedCowellZCartesianPositionIndex = 2,
+    stabilizedCowellXCartesianVelocityIndex = 3,
+    stabilizedCowellYCartesianVelocityIndex = 4,
+    stabilizedCowellZCartesianVelocityIndex = 5,
+    stabilizedCowellEnergy = 6,
+    stabilizedCowellTime = 7,
+};
+
 } // namespace orbital_element_conversions
 
 } // namespace tudat

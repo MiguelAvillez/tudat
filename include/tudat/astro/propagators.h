@@ -26,6 +26,7 @@
 #include "propagators/nBodyUnifiedStateModelExponentialMapStateDerivative.h"
 #include "propagators/nBodyUnifiedStateModelModifiedRodriguesParametersStateDerivative.h"
 #include "propagators/nBodyUnifiedStateModelQuaternionsStateDerivative.h"
+#include "propagators/nBodyStabilizedCowellStateDerivative.h"
 #include "propagators/propagateCovariance.h"
 #include "propagators/rotationalMotionExponentialMapStateDerivative.h"
 #include "propagators/rotationalMotionModifiedRodriguesParametersStateDerivative.h"
