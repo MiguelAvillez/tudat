@@ -231,6 +231,26 @@ public:
         return false;
     }
 
+    //! Function to return the physical time. Useful for regularized propagators, where the independent variable does
+    //! not coincide with the time
+    //! \param independentVariable Independent variable.
+    //! \return Physical time.
+    virtual TimeType getPhysicalTime(
+            const TimeType& independentVariable,
+            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >& stateOfSystemToBeIntegrated )
+    {
+        return independentVariable;
+    }
+
+    //! Function returns whether the state derivative type considers the time to be a dependent variable.
+    //! Default value is false, which applies to the cases where time is the independent variable. Takes the value true
+    //! when the independent variable is not the time and the time is a part of the state (e.g. regularized propagators)
+    //! \return Boolean informing whether state derivative includes time
+    virtual bool timeIsADependentVariable( )
+    {
+        return false;
+    }
+
 protected:
 
     // Type of dynamics for which the state derivative is calculated.

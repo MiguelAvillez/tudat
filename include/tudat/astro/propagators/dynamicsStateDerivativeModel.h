@@ -139,13 +139,13 @@ public:
      *  settings. Depending on the settings, this function may calculate the dynamical equations
      *  and/or variational equations for a subset of the dynamical equation types that are set in
      *  the stateDerivativeModels_ map.
-     *  \param time Current time.
+     *  \param independentVariable Current independent variable.
      *  \param state Current complete state.
      *  \return Calculated state derivative.
      */
-    StateType computeStateDerivative( const TimeType time, const StateType& state )
+    StateType computeStateDerivative( const TimeType independentVariable, const StateType& state )
     {
-        if( !( time == time ) )
+        if( !( independentVariable == independentVariable ) )
         {
             throw std::invalid_argument( "Error when computing system state derivative. Input time is NaN" );
         }
@@ -159,7 +159,6 @@ public:
         {
             throw std::invalid_argument( "Error when computing system state derivative. State vector contains Inf" );
         }
-//        std::cout << "Computing state derivative: " <<time<<" "<<state.transpose( ) << std::endl;
 
         // Initialize state derivative
         if( stateDerivative_.rows( ) != state.rows( ) || stateDerivative_.cols( ) != state.cols( )  )
@@ -167,9 +166,14 @@ public:
             stateDerivative_.resize( state.rows( ), state.cols( ) );
         }
 
+        // Create variable to hold the time
+        TimeType time = TUDAT_NAN;
+
         // If dynamical equations are integrated, update the environment with the current state.
         if( evaluateDynamicsEquations_ )
         {
+            unsigned int timeAsDependentVariableCounter = 0;
+
             // Iterate over all types of equations.
             for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
                  stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
@@ -178,7 +182,24 @@ public:
                 for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
                 {
                     stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
+
+                    if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
+                    {
+                        ++timeAsDependentVariableCounter;
+                        time = stateDerivativeModelsIterator_->second.at( i )->getPhysicalTime( independentVariable, state );
+                    }
                 }
+            }
+
+            // Deal with time in case there is more or less than one propagator that has time as dependent variable
+            if ( timeAsDependentVariableCounter > 1 )
+            {
+                throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
+                    ") has time as a dependent variable.");
+            }
+            else if ( timeAsDependentVariableCounter == 0 )
+            {
+                time = independentVariable;
             }
 
             convertCurrentStateToGlobalRepresentationPerType( state, time, evaluateVariationalEquations_ );
@@ -187,6 +208,9 @@ public:
         }
         else
         {
+            // If the dynamical equations are not integrated, the independent variable is the time
+            time = independentVariable;
+
             environmentUpdateFunction_(
                         time, std::unordered_map<
                         IntegratedStateType, Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > >( ),
@@ -224,7 +248,7 @@ public:
                     currentIndices = propagatedStateIndices_.at( stateDerivativeModelsIterator_->first ).at( i );
 
                     stateDerivativeModelsIterator_->second.at( i )->calculateSystemStateDerivative(
-                                time, state.block( currentIndices.first, dynamicsStartColumn_, currentIndices.second, 1 ),
+                                independentVariable, state.block( currentIndices.first, dynamicsStartColumn_, currentIndices.second, 1 ),
                                 stateDerivative_.block( currentIndices.first, dynamicsStartColumn_, currentIndices.second, 1 ) );
                 }
             }
@@ -236,7 +260,7 @@ public:
             variationalEquations_->updatePartials( time, currentStatesPerTypeInConventionalRepresentation_ );
 
             variationalEquations_->evaluateVariationalEquations< StateScalarType >(
-                        time, state.block( 0, 0, totalConventionalStateSize_, variationalEquations_->getNumberOfParameterValues( ) ),
+                        TUDAT_NAN, state.block( 0, 0, totalConventionalStateSize_, variationalEquations_->getNumberOfParameterValues( ) ),
                         stateDerivative_.block( 0, 0, totalConventionalStateSize_, variationalEquations_->getNumberOfParameterValues( ) ) );
         }
 
@@ -252,14 +276,14 @@ public:
     /*!
      *  Function to calculate the system state derivative with double precision, regardless of template arguments.
      *  \sa computeStateDerivative
-     *  \param time Current time.
+     *  \param independentVariable Current independent variable.
      *  \param state Current complete state.
      *  \return Calculated state derivative.
      */
     Eigen::MatrixXd computeStateDoubleDerivative(
-            const double time, const Eigen::MatrixXd& state )
+            const double independentVariable, const Eigen::MatrixXd& state )
     {
-        return computeStateDerivative( static_cast< TimeType >( time ),
+        return computeStateDerivative( static_cast< TimeType >( independentVariable ),
                                        state.template cast< StateScalarType >( ) ).template cast< double >( );
     }
 
