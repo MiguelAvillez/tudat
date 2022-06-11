@@ -33,16 +33,37 @@ double computeLinearTimeElementDerivativeForStabilizedCowell(
     return linearTimeElementDerivative;
 }
 
-double convertLinearTimeElementToPhysicalTime (
+double computeLinearTimeElementToPhysicalTimeBias (
         const Eigen::Vector8d& currentStabilizedCowellState,
         const double sundmanConstant)
 {
     const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergy );
-    const double linearTimeElement = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTime );
     const Eigen::Vector3d position( currentStabilizedCowellState.segment( 0, 3 ) );
     const Eigen::Vector3d velocity( currentStabilizedCowellState.segment( 3, 3 ) );
 
-    double physicalTime = linearTimeElement - position.dot( velocity ) / ( 2.0 * energy * sundmanConstant * position.norm() );
+    return position.dot( velocity ) / ( 2.0 * energy * sundmanConstant * position.norm() );
+}
+
+double convertLinearTimeElementToPhysicalTime (
+        const Eigen::Vector8d& currentStabilizedCowellState,
+        const double sundmanConstant)
+{
+    const double linearTimeElement = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTime );
+
+    double physicalTime = linearTimeElement -
+            computeLinearTimeElementToPhysicalTimeBias(currentStabilizedCowellState, sundmanConstant);
+
+    return physicalTime;
+}
+
+double convertPhysicalTimeToLinearTimeElement (
+        const Eigen::Vector8d& currentStabilizedCowellState,
+        const double sundmanConstant)
+{
+    const double physicalTime = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTime );
+
+    double linearTimeElement = physicalTime +
+            computeLinearTimeElementToPhysicalTimeBias(currentStabilizedCowellState, sundmanConstant);
 
     return physicalTime;
 }
@@ -83,6 +104,17 @@ Eigen::Vector7d computeStateDerivativeExceptTimeForStabilizedCowell(
     stateDerivative( orbital_element_conversions::stabilizedCowellZCartesianVelocityIndex ) = acceleration(2);
 
     return stateDerivative;
+}
+
+double computeEnergy(
+        const double centralBodyGravitationalParameter,
+        const Eigen::Vector6d& currentCartesianState,
+        const double conservativeAccelerationsPotential)
+{
+    const Eigen::Vector3d position( currentCartesianState.segment( 0, 3 ) );
+    const Eigen::Vector3d velocity( currentCartesianState.segment( 3, 3 ) );
+
+    return centralBodyGravitationalParameter / position.norm() - std::pow( velocity.norm(), 2 ) / 2.0 - conservativeAccelerationsPotential;
 }
 
 template class NBodyStabilizedCowellStateDerivative< double, double >;
