@@ -509,7 +509,6 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
 
     // Set initial time step and total integration time.
     TimeStepType timeStep = initialTimeStep;
-    TimeType previousTime = currentTime;
     TimeType previousPrintTime = TUDAT_NAN;
 
     int saveIndex = 0;
@@ -525,8 +524,6 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
         {
             if( ( newState.allFinite( ) == true ) && ( !newState.hasNaN( ) ) )
             {
-                previousTime = currentTime;
-
                 // Perform integration step.
                 newState = integrator->performIntegrationStep( timeStep );
                 if( statePostProcessingFunction != nullptr )
@@ -703,6 +700,7 @@ public:
      */
     static std::shared_ptr< PropagationTerminationDetails > integrateEquations(
             std::function< StateType( const TimeType, const StateType& ) > stateDerivativeFunction,
+            std::function< TimeType( const TimeType, const StateType& ) > timeFunction,
             std::map< TimeType, StateType >& solutionHistory,
             const StateType initialState,
             const std::shared_ptr< numerical_integrators::IntegratorSettings< TimeType > > integratorSettings,
@@ -745,6 +743,7 @@ public:
      */
     static std::shared_ptr< PropagationTerminationDetails > integrateEquations(
             std::function< StateType( const double, const StateType& ) > stateDerivativeFunction,
+            std::function< double( const double, const StateType& ) > timeFunction,
             std::map< double, StateType >& solutionHistory,
             const StateType initialState,
             const std::shared_ptr< numerical_integrators::IntegratorSettings< double > > integratorSettings,
@@ -763,6 +762,8 @@ public:
         std::shared_ptr< numerical_integrators::NumericalIntegrator< double, StateType, StateType > > integrator =
                 numerical_integrators::createIntegrator< double, StateType >(
                     stateDerivativeFunction, initialState, integratorSettings );
+
+        integrator->setTimeFunction( timeFunction );
 
         if( integratorSettings->assessTerminationOnMinorSteps_ )
         {
@@ -811,6 +812,7 @@ public:
      */
     static std::shared_ptr< PropagationTerminationDetails > integrateEquations(
             std::function< StateType( const Time, const StateType& ) > stateDerivativeFunction,
+            std::function< Time( const Time, const StateType& ) > timeFunction,
             std::map< Time, StateType >& solutionHistory,
             const StateType initialState,
             const std::shared_ptr< numerical_integrators::IntegratorSettings< Time > > integratorSettings,
@@ -829,6 +831,8 @@ public:
         std::shared_ptr< numerical_integrators::NumericalIntegrator< Time, StateType, StateType, long double > > integrator =
                 numerical_integrators::createIntegrator< Time, StateType, long double  >(
                     stateDerivativeFunction, initialState, integratorSettings );
+
+        integrator->setTimeFunction( timeFunction );
 
         if( integratorSettings->assessTerminationOnMinorSteps_ )
         {

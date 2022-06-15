@@ -525,6 +525,10 @@ public:
             }
         }
 
+        timeFunction_ =
+                std::bind( &DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToPhysicalTime,
+                           dynamicsStateDerivative_, std::placeholders::_1, std::placeholders::_2 );
+
         stateDerivativeFunction_ =
                 std::bind( &DynamicsStateDerivativeModel< TimeType, StateScalarType >::computeStateDerivative,
                              dynamicsStateDerivative_, std::placeholders::_1, std::placeholders::_2 );
@@ -596,7 +600,8 @@ public:
         simulation_setup::setAreBodiesInPropagation( bodies_, true );
         propagationTerminationReason_ =
                 EquationIntegrationInterface< Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >, TimeType >::integrateEquations(
-                    stateDerivativeFunction_, equationsOfMotionNumericalSolutionRaw_,
+                    stateDerivativeFunction_, timeFunction_,
+                    equationsOfMotionNumericalSolutionRaw_,
                     dynamicsStateDerivative_->convertFromOutputSolution(
                         initialStates, this->initialPropagationTime_ ), integratorSettings_,
                     propagationTerminationCondition_,
@@ -741,6 +746,18 @@ public:
     std::shared_ptr< numerical_integrators::IntegratorSettings< TimeType > > getIntegratorSettings( )
     {
         return integratorSettings_;
+    }
+
+    //! Function to get the function that converts the independent variable to the physical time.
+    /*!
+     * Function to get the function that converts the independent variable to the physical time.
+     * \return Function that converts the independent variable to the physical time.
+     */
+    std::function< TimeType
+    ( const TimeType, const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >&) >
+    getTimeFunction( )
+    {
+        return timeFunction_;
     }
 
     //! Function to get the function that performs a single state derivative function evaluation.
@@ -965,6 +982,14 @@ protected:
 
     //! Interface object that updates current environment and returns state derivative from single function call.
     std::shared_ptr< DynamicsStateDerivativeModel< TimeType, StateScalarType > > dynamicsStateDerivative_;
+
+    //! Function that converts the current independent variable to the physical time.
+    /*!
+     * Function that convert the current independent variable to the physical time, will typically be set to
+     *  DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToPhysicalTime function.
+     */
+    std::function< TimeType
+    ( const TimeType, const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& ) > timeFunction_;
 
     //! Function that performs a single state derivative function evaluation.
     /*!

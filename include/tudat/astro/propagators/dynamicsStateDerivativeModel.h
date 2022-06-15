@@ -172,35 +172,7 @@ public:
         // If dynamical equations are integrated, update the environment with the current state.
         if( evaluateDynamicsEquations_ )
         {
-            unsigned int timeAsDependentVariableCounter = 0;
-
-            // Iterate over all types of equations.
-            for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
-                 stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
-                 stateDerivativeModelsIterator_++ )
-            {
-                for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
-                {
-                    stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
-
-                    if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
-                    {
-                        ++timeAsDependentVariableCounter;
-                        time = stateDerivativeModelsIterator_->second.at( i )->getPhysicalTime( independentVariable, state );
-                    }
-                }
-            }
-
-            // Deal with time in case there is more or less than one propagator that has time as dependent variable
-            if ( timeAsDependentVariableCounter > 1 )
-            {
-                throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
-                    ") has time as a dependent variable.");
-            }
-            else if ( timeAsDependentVariableCounter == 0 )
-            {
-                time = independentVariable;
-            }
+            time = this->convertIndependentVariableToPhysicalTime( independentVariable, state );
 
             convertCurrentStateToGlobalRepresentationPerType( state, time, evaluateVariationalEquations_ );
             environmentUpdateFunction_( time, currentStatesPerTypeInConventionalRepresentation_,
@@ -285,6 +257,54 @@ public:
     {
         return computeStateDerivative( static_cast< TimeType >( independentVariable ),
                                        state.template cast< StateScalarType >( ) ).template cast< double >( );
+    }
+
+    //! Function to compute the current physical time from the current independent variable.
+    //! The physical time and independent variable are different if the used propagators use an independent variable other
+    //! than time (e.g. regularized propagators).
+    //! \param independentVariable Current independent variable.
+    //! \param state Current complete state.
+    //! \return Physical time.
+    TimeType convertIndependentVariableToPhysicalTime ( const TimeType independentVariable, const StateType& state )
+    {
+        if ( independentVariable != independentVariable_ )
+        {
+            independentVariable_ = independentVariable;
+
+            // Counter for the number of state derivative models that have time as indepdenet variable
+            unsigned int timeAsDependentVariableCounter = 0;
+
+            // Iterate over all types of equations.
+            for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
+                 stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
+                 stateDerivativeModelsIterator_++ )
+            {
+                for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
+                {
+                    stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
+
+                    if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
+                    {
+                        ++timeAsDependentVariableCounter;
+                        physicalTime_ = stateDerivativeModelsIterator_->second.at( i )->getPhysicalTime( independentVariable, state );
+                    }
+                }
+            }
+
+            // Deal with time in case there is more or less than one propagator that has time as dependent variable
+            if ( timeAsDependentVariableCounter > 1 )
+            {
+                throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
+                    ") has time as a dependent variable.");
+            }
+            else if ( timeAsDependentVariableCounter == 0 )
+            {
+                physicalTime_ = independentVariable;
+            }
+
+        }
+
+        return physicalTime_;
     }
 
     //! Function to convert the state in the conventional form to the propagator-specific form.
@@ -739,6 +759,12 @@ private:
 
     //! Current state derivative, as computed by computeStateDerivative.
     StateType stateDerivative_;
+
+    //! Current independent variable (which might or might not coincide with the physical time)
+    TimeType independentVariable_;
+
+    //! Current physical time
+    TimeType physicalTime_;
 
     //! Current state in 'conventional' representation, computed from current propagated state by
     //! convertCurrentStateToGlobalRepresentationPerType

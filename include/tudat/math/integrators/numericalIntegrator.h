@@ -54,6 +54,10 @@ public:
     typedef std::function< StateDerivativeType(
             const IndependentVariableType, const StateType& ) > StateDerivativeFunction;
 
+    //! Typedef to the function that return the physical time.
+    typedef std::function< IndependentVariableType (
+            const IndependentVariableType, const StateType& ) > TimeFunction;
+
     //! Default constructor.
     /*!
      * Default constructor, taking a state derivative function as argument.
@@ -61,6 +65,7 @@ public:
      */
     NumericalIntegrator( const StateDerivativeFunction& stateDerivativeFunction ) :
         stateDerivativeFunction_( stateDerivativeFunction ),
+        timeFunction_( [ = ]( const IndependentVariableType independentVariable, const StateType& state ){ return independentVariable; } ),
         propagationTerminationFunction_( [ = ]( const double, const double ){ return false; } )
     { }
 
@@ -190,6 +195,11 @@ public:
         propagationTerminationFunction_ = terminationFunction;
     }
 
+    void setTimeFunction( std::function< IndependentVariableType( const IndependentVariableType, const StateType& ) > timeFunction )
+    {
+        timeFunction_ = timeFunction;
+    }
+
     //! Function to toggle the use of step-size control
     /*!
      * Function to toggle the use of step-size control. To be implemented in derived classes with variable step sizes
@@ -240,6 +250,12 @@ protected:
      * Function that returns the state derivative, as passed to the constructor.
      */
     StateDerivativeFunction stateDerivativeFunction_;
+
+    //! Function that returns the physical time.
+    /*!
+     * Function that returns the physical time, as passed to the constructor.
+     */
+    TimeFunction timeFunction_;
 
     //! Boolean to denote whether the propagation termination condition was reached during the evaluation of one of the sub-steps
     /*!

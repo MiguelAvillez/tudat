@@ -772,7 +772,8 @@ public:
             simulation_setup::setAreBodiesInPropagation( bodies_, true );
             std::shared_ptr< PropagationTerminationDetails > propagationTerminationReason =
                     EquationIntegrationInterface< MatrixType, TimeType >::integrateEquations(
-                        dynamicsSimulator_->getStateDerivativeFunction( ), rawNumericalSolution,
+                        dynamicsSimulator_->getStateDerivativeFunction( ),  dynamicsSimulator_->getTimeFunction( ),
+                        rawNumericalSolution,
                         initialVariationalState, integratorSettings_,
                         dynamicsSimulator_->getPropagationTerminationCondition( ),
                         dependentVariableHistory,
@@ -817,7 +818,8 @@ public:
 
             simulation_setup::setAreBodiesInPropagation( bodies_, true );
             EquationIntegrationInterface< Eigen::MatrixXd, double >::integrateEquations(
-                        dynamicsSimulator_->getDoubleStateDerivativeFunction( ), rawNumericalSolution, initialVariationalState,
+                        dynamicsSimulator_->getDoubleStateDerivativeFunction( ),
+                        dynamicsSimulator_->getTimeFunction( ), rawNumericalSolution, initialVariationalState,
                         variationalOnlyIntegratorSettings_,
                         dynamicsSimulator_->getPropagationTerminationCondition( ),
                         dependentVariableHistory, cumulativeComputationTimeHistory );
@@ -1362,6 +1364,7 @@ public:
                 std::shared_ptr< PropagationTerminationDetails > propagationTerminationReason =
                 EquationIntegrationInterface< MatrixType, TimeType >::integrateEquations(
                             singleArcDynamicsSimulators.at( i )->getStateDerivativeFunction( ),
+                            singleArcDynamicsSimulators.at( i )->getTimeFunction( ),
                             rawNumericalSolution,
                             initialVariationalState, integratorSettings,
                             singleArcDynamicsSimulators.at( i )->getPropagationTerminationCondition( ),
@@ -1456,6 +1459,7 @@ public:
                 simulation_setup::setAreBodiesInPropagation( bodies_, true );
                 EquationIntegrationInterface< MatrixType, TimeType >::integrateEquations(
                             singleArcDynamicsSimulators.at( i )->getStateDerivativeFunction( ),
+                            singleArcDynamicsSimulators.at( i )->getTimeFunction( ),
                             rawNumericalSolutions, initialVariationalState,
                             singleArcDynamicsSimulators.at( i )->getIntegratorSettings( ),
                             singleArcDynamicsSimulators.at( i )->getPropagationTerminationCondition( ),

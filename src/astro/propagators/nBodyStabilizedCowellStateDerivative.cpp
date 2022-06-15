@@ -65,7 +65,7 @@ double convertPhysicalTimeToLinearTimeElement (
     double linearTimeElement = physicalTime +
             computeLinearTimeElementToPhysicalTimeBias(currentStabilizedCowellState, sundmanConstant);
 
-    return physicalTime;
+    return linearTimeElement;
 }
 
 Eigen::Vector7d computeStateDerivativeExceptTimeForStabilizedCowell(

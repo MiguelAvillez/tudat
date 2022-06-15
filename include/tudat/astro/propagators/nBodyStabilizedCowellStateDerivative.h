@@ -70,12 +70,6 @@ double convertPhysicalTimeToLinearTimeElement (
         const Eigen::Vector8d& currentStabilizedCowellState,
         const double sundmanConstant);
 
-
-double convertPhysicalTimeToLinearTimeElement (
-        const Eigen::Vector6d& currentCartesianState,
-        const double sundmanConstant,
-        const double physicalTime);
-
 //! Function to compute the derivative of the stabilized cowell elements, except time, with respect to the fictitious time (Janin, 1974, Eq. 3.14).
 //! \param currentStabilizedCowellState Current state in stabilized Cowell formulation of the body for which the equations of
 //! motions are to be evaluated
@@ -253,7 +247,14 @@ public:
         Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > currentState =
                 Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >::Zero( getPropagatedStateSize( ) );
 
+        // Cartesian position and velocity
         currentState.block( 0, 0, 6, 1 ) = cartesianSolution.block( 0, 0, 6, 1 );
+
+        // Energy
+        // TODO: computation of potential of conservative accelerations
+        double conservativeAccelerationsPotential = 0.0;
+        currentState( orbital_element_conversions::stabilizedCowellEnergy, 0 ) =
+                computeEnergy( centralBodyGravitationalParameterFunction_(), cartesianSolution, conservativeAccelerationsPotential);
 
         if ( timeType_ == physical_time )
         {
@@ -261,7 +262,8 @@ public:
         }
         else // Linear time element
         {
-            currentState( orbital_element_conversions::stabilizedCowellTime, 0 ) =
+            currentState( orbital_element_conversions::stabilizedCowellTime, 0 ) = convertPhysicalTimeToLinearTimeElement(
+                    currentState, sundmanConstant_);
         }
 
         return currentState;
