@@ -271,38 +271,7 @@ public:
         if ( independentVariable != independentVariable_ )
         {
             independentVariable_ = independentVariable;
-
-            // Counter for the number of state derivative models that have time as indepdenet variable
-            unsigned int timeAsDependentVariableCounter = 0;
-
-            // Iterate over all types of equations.
-            for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
-                 stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
-                 stateDerivativeModelsIterator_++ )
-            {
-                for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
-                {
-                    stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
-
-                    if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
-                    {
-                        ++timeAsDependentVariableCounter;
-                        physicalTime_ = stateDerivativeModelsIterator_->second.at( i )->getPhysicalTime( independentVariable, state );
-                    }
-                }
-            }
-
-            // Deal with time in case there is more or less than one propagator that has time as dependent variable
-            if ( timeAsDependentVariableCounter > 1 )
-            {
-                throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
-                    ") has time as a dependent variable.");
-            }
-            else if ( timeAsDependentVariableCounter == 0 )
-            {
-                physicalTime_ = independentVariable;
-            }
-
+            physicalTime_ = independentVariableToTimeFunction_( );
         }
 
         return physicalTime_;
@@ -701,6 +670,53 @@ private:
         }
     }
 
+    void initializeFunctionToConvertIndependentVariableToTime ( )
+    {
+        // Counter for the number of state derivative models that have time as indepdenet variable
+        unsigned int timeAsDependentVariableCounter = 0;
+        std::vector< std::function< TimeType ( const TimeType, const StateType& ) > > independentVariableToTimeFunctions;
+
+        // Iterate over all types of equations.
+        for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
+             stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
+             stateDerivativeModelsIterator_++ )
+        {
+            for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
+            {
+                stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
+
+                if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
+                {
+                    ++timeAsDependentVariableCounter;
+
+                    independentVariableToTimeFunctions.push_back(
+                        std::bind( &SingleStateTypeDerivative< TimeType, StateScalarType >::getPhysicalTime,
+                                   stateDerivativeModelsIterator_->second.at( i ), std::placeholders::_1, std::placeholders::_2 ) );
+                }
+            }
+        }
+
+        // Throw error if there is more than one propagator that has time as dependent variable.
+        if ( timeAsDependentVariableCounter > 1 )
+        {
+            throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
+                ") has time as a dependent variable.");
+        }
+        // Define the function to return the time if no propagator has time as dependent variable.
+        else if ( timeAsDependentVariableCounter == 0 )
+        {
+            independentVariableToTimeFunction_  = [ = ]( const TimeType independentVariable, const StateType& state )
+                    { return independentVariable; };
+
+            timeIsIndependentVariable_ = false;
+        }
+        // A single propagator with time as dependent variable
+        else
+        {
+            independentVariableToTimeFunction_ = independentVariableToTimeFunctions.at( 0 );
+        }
+    }
+
     std::function<
     void( const TimeType, const std::unordered_map< IntegratedStateType,
           Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > >&,
@@ -766,6 +782,12 @@ private:
 
     //! Current physical time
     TimeType physicalTime_;
+
+    //! Function to convert the independent variable to time.
+    std::function< TimeType ( const TimeType, const StateType& ) > independentVariableToTimeFunction_;
+
+    //! Boolean indicating whether time is the independent variable.
+    bool timeIsIndependentVariable_ = true;
 
     //! Current state in 'conventional' representation, computed from current propagated state by
     //! convertCurrentStateToGlobalRepresentationPerType
