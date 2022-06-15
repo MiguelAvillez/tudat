@@ -100,6 +100,19 @@ public:
      */
     virtual IndependentVariableType getCurrentIndependentVariable( ) const = 0;
 
+    //! Returns the current physical time.
+    /*!
+     * Returns the current physical time, which might or might not coincide with the indepdenent variable. If regularized
+     * propagators are used, it will not coincide.
+     * @param independentVariable Value of the current independent variable.
+     * @param state Value of the current state.
+     * @return Physical time
+     */
+    IndependentVariableType getCurrentTime( const IndependentVariableType independentVariable, const StateType& state )
+    {
+        return timeFunction_(independentVariable, state);
+    }
+
     //! Rollback internal state to the step performed by performIntegrationStep()
     /*!
      * Performs rollback of internal state to the step performed by performIntegrationStep(). This

@@ -486,29 +486,32 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
     std::shared_ptr< PropagationTerminationDetails > propagationTerminationReason;
 
     // Get Initial state and time.
-    TimeType currentTime = integrator->getCurrentIndependentVariable( );
-    TimeType initialTime = currentTime;
+    TimeType currentIndependentVariable = integrator->getCurrentIndependentVariable( );
+    TimeType initialIndependentVariable = currentIndependentVariable;
     StateType newState = integrator->getCurrentState( );
+
+    TimeType currentTime = integrator->getCurrentTime(currentIndependentVariable, newState);
+    TimeType initialTime = currentTime;
 
     // Initialization of numerical solutions for variational equations
     solutionHistory.clear( );
-    solutionHistory[ currentTime ] = newState;
+    solutionHistory[ currentIndependentVariable ] = newState;
 
     dependentVariableHistory.clear( );
     if( !( dependentVariableFunction == nullptr ) )
     {
-        integrator->getStateDerivativeFunction( )( currentTime, newState );
-        dependentVariableHistory[ currentTime ] = dependentVariableFunction( );
+        integrator->getStateDerivativeFunction( )(currentIndependentVariable, newState );
+        dependentVariableHistory[ currentIndependentVariable ] = dependentVariableFunction( );
     }
 
     // CPU time
     cumulativeComputationTimeHistory.clear( );
     double currentCPUTime = std::chrono::duration_cast< std::chrono::nanoseconds >(
                 std::chrono::steady_clock::now( ) - initialClockTime ).count( ) * 1.0e-9;
-    cumulativeComputationTimeHistory[ currentTime ] = currentCPUTime;
+    cumulativeComputationTimeHistory[ currentIndependentVariable ] = currentCPUTime;
 
     // Set initial time step and total integration time.
-    TimeStepType timeStep = initialTimeStep;
+    TimeStepType independentVariableStep = initialTimeStep;
     TimeType previousPrintTime = TUDAT_NAN;
 
     int saveIndex = 0;
@@ -525,7 +528,7 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
             if( ( newState.allFinite( ) == true ) && ( !newState.hasNaN( ) ) )
             {
                 // Perform integration step.
-                newState = integrator->performIntegrationStep( timeStep );
+                newState = integrator->performIntegrationStep( independentVariableStep );
                 if( statePostProcessingFunction != nullptr )
                 {
                     statePostProcessingFunction( newState );
@@ -545,20 +548,20 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
                 }
 
                 // Update epoch and step-size
-                currentTime = integrator->getCurrentIndependentVariable( );
-                timeStep = integrator->getNextStepSize( );
+                currentIndependentVariable = integrator->getCurrentIndependentVariable( );
+                independentVariableStep = integrator->getNextStepSize( );
 
                 // Save integration result in map
                 saveIndex++;
                 saveIndex = saveIndex % saveFrequency;
                 if( saveIndex == 0 )
                 {
-                    solutionHistory[ currentTime ] = newState;
+                    solutionHistory[ currentIndependentVariable ] = newState;
 
                     if( !( dependentVariableFunction == nullptr ) )
                     {
-                        integrator->getStateDerivativeFunction( )( currentTime, newState );
-                        dependentVariableHistory[ currentTime ] = dependentVariableFunction( );
+                        integrator->getStateDerivativeFunction( )(currentIndependentVariable, newState );
+                        dependentVariableHistory[ currentIndependentVariable ] = dependentVariableFunction( );
                     }
                 }
             }
@@ -571,31 +574,33 @@ std::shared_ptr< PropagationTerminationDetails > integrateEquationsFromIntegrato
                             nan_or_inf_detected_in_state );
             }
 
+            currentTime = integrator->getCurrentTime( currentIndependentVariable, newState );
+
             currentCPUTime = std::chrono::duration_cast< std::chrono::nanoseconds >(
                         std::chrono::steady_clock::now( ) - initialClockTime ).count( ) * 1.0e-9;
-            cumulativeComputationTimeHistory[ currentTime ] = currentCPUTime;
+            cumulativeComputationTimeHistory[ currentIndependentVariable ] = currentCPUTime;
 
             // Print solutions
             if( printInterval == printInterval )
             {
                 if( !( previousPrintTime == previousPrintTime ) ||
-                        std::fabs( static_cast< double >( currentTime - previousPrintTime ) ) > printInterval )
+                    std::fabs( static_cast< double >( currentTime - previousPrintTime ) ) > printInterval )
                 {
                     previousPrintTime = currentTime;
-                    std::cout << "Current time: "<<currentTime<<"; time since initial time: "<<currentTime - initialTime<<std::endl;
-                    std::cout << "Current time step: "<<timeStep<<std::endl;
+                    std::cout << "Current time: " << currentTime << "; time since initial time: " << currentTime - initialTime << std::endl;
+                    std::cout << "Current time step: " << independentVariableStep << std::endl;
                     std::cout << "Current state (transposed): "<<newState.transpose( ) <<std::endl<<std::endl;
                 }
             }
 
-            if( propagationTerminationCondition->checkStopCondition( static_cast< double >( currentTime ), currentCPUTime ) )
+            if( propagationTerminationCondition->checkStopCondition(static_cast< double >( currentTime ), currentCPUTime ) )
             {
                 if( propagationTerminationCondition->getcheckTerminationToExactCondition( ) )
                 {
                     propagateToExactTerminationCondition(
-                                integrator, propagationTerminationCondition,
-                                timeStep, dependentVariableFunction,
-                                solutionHistory, dependentVariableHistory, currentCPUTime );
+                            integrator, propagationTerminationCondition,
+                            independentVariableStep, dependentVariableFunction,
+                            solutionHistory, dependentVariableHistory, currentCPUTime );
                 }
 
                 // Set termination details
