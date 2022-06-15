@@ -172,6 +172,7 @@ public:
         // If dynamical equations are integrated, update the environment with the current state.
         if( evaluateDynamicsEquations_ )
         {
+            // Get the physical time
             time = this->convertIndependentVariableToPhysicalTime( independentVariable, state );
 
             convertCurrentStateToGlobalRepresentationPerType( state, time, evaluateVariationalEquations_ );
