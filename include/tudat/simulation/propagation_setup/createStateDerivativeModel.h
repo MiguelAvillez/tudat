@@ -27,6 +27,7 @@ using namespace boost::placeholders;
 #include "tudat/astro/propagators/nBodyUnifiedStateModelQuaternionsStateDerivative.h"
 #include "tudat/astro/propagators/nBodyUnifiedStateModelModifiedRodriguesParametersStateDerivative.h"
 #include "tudat/astro/propagators/nBodyUnifiedStateModelExponentialMapStateDerivative.h"
+#include "tudat/astro/propagators/nBodyStabilizedCowellStateDerivative.h"
 #include "tudat/astro/propagators/rotationalMotionStateDerivative.h"
 #include "tudat/astro/propagators/rotationalMotionQuaternionsStateDerivative.h"
 #include "tudat/astro/propagators/rotationalMotionModifiedRodriguesParametersStateDerivative.h"
@@ -244,6 +245,30 @@ createTranslationalStateDerivativeModel(
         stateDerivativeModel = std::make_shared< NBodyUnifiedStateModelExponentialMapStateDerivative< StateScalarType, TimeType > >
                 ( translationPropagatorSettings->getAccelerationsMap( ), centralBodyData,
                   translationPropagatorSettings->bodiesToIntegrate_ );
+        break;
+    }
+    case stabilized_cowell:
+    {
+        std::vector< Eigen::Matrix< StateScalarType, 6, 1 > > initialKeplerElements;
+        std::vector< std::string > centralBodies = translationPropagatorSettings->centralBodies_;
+
+        for( unsigned int i = 0; i < translationPropagatorSettings->bodiesToIntegrate_.size( ); i++ )
+        {
+            if( bodies.count( centralBodies[ i ] ) == 0 )
+            {
+                std::string errorMessage = "Error when creating modified equinoctial propagator, did not find central body " + centralBodies[ i ];
+                throw std::runtime_error( errorMessage );
+            }
+            initialKeplerElements.push_back( orbital_element_conversions::convertCartesianToKeplerianElements< StateScalarType >(
+                                                 translationPropagatorSettings->getInitialStates( ).segment( i * 6, 6 ), static_cast< StateScalarType >(
+                                                     bodies.at( centralBodies[ i ] )->getGravityFieldModel( )->getGravitationalParameter( ) ) ) );
+        }
+
+        // Create stabilized cowell state derivative object.:
+        stateDerivativeModel = std::make_shared< NBodyStabilizedCowellStateDerivative< StateScalarType, TimeType > >
+                ( translationPropagatorSettings->getAccelerationsMap( ), centralBodyData,
+                  translationPropagatorSettings->bodiesToIntegrate_, physical_time, initialKeplerElements );
+
         break;
     }
     default:
