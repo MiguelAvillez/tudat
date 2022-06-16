@@ -173,7 +173,7 @@ public:
         if( evaluateDynamicsEquations_ )
         {
             // Get the physical time
-            time = this->convertIndependentVariableToPhysicalTime( independentVariable, state );
+            time = this->convertIndependentVariableToTime(independentVariable, state);
 
             convertCurrentStateToGlobalRepresentationPerType( state, time, evaluateVariationalEquations_ );
             environmentUpdateFunction_( time, currentStatesPerTypeInConventionalRepresentation_,
@@ -266,12 +266,12 @@ public:
     //! \param independentVariable Current independent variable.
     //! \param state Current complete state.
     //! \return Physical time.
-    TimeType convertIndependentVariableToPhysicalTime ( const TimeType independentVariable, const StateType& state )
+    TimeType convertIndependentVariableToTime (const TimeType independentVariable, const StateType& state )
     {
         if ( independentVariable != independentVariable_ )
         {
             independentVariable_ = independentVariable;
-            physicalTime_ = independentVariableToTimeFunction_( );
+            physicalTime_ = independentVariableToTimeFunction_( independentVariable, state );
         }
 
         return physicalTime_;
@@ -378,7 +378,7 @@ public:
         {
             // Convert solution at this time to output (Cartesian with propagation origin frame for
             // translational dynamics) solution
-            convertedSolution[ stateIterator->first ] =
+            convertedSolution[ independentVariableToTimeFunction_( stateIterator->first, stateIterator->second ) ] =
                     convertToOutputSolution( stateIterator->second, stateIterator->first );
         }
     }

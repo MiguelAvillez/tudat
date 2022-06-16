@@ -526,7 +526,7 @@ public:
         }
 
         timeFunction_ =
-                std::bind( &DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToPhysicalTime,
+                std::bind(&DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToTime,
                            dynamicsStateDerivative_, std::placeholders::_1, std::placeholders::_2 );
 
         stateDerivativeFunction_ =
@@ -986,7 +986,7 @@ protected:
     //! Function that converts the current independent variable to the physical time.
     /*!
      * Function that convert the current independent variable to the physical time, will typically be set to
-     *  DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToPhysicalTime function.
+     *  DynamicsStateDerivativeModel< TimeType, StateScalarType >::convertIndependentVariableToTime function.
      */
     std::function< TimeType
     ( const TimeType, const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& ) > timeFunction_;

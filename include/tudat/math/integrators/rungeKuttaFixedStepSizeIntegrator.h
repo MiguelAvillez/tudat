@@ -189,7 +189,7 @@ public:
             // Check if propagation should terminate because the propagation termination condition has been reached
             // while computing the intermediate state.
             // If so, return immediately the current state (not recomputed yet), which will be discarded.
-            const IndependentVariableType time = this->timeFunction_( );
+            const IndependentVariableType time = this->timeFunction_( independentVariable, intermediateState );
             if ( this->propagationTerminationFunction_(static_cast< double >( time ), TUDAT_NAN ) )
             {
                 this->propagationTerminationConditionReachedDuringStep_ = true;
