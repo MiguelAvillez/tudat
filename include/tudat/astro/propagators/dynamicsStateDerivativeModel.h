@@ -129,6 +129,9 @@ public:
                     Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >::Zero(
                         conventionalStateTypeSize_.at( stateDerivativeModels.at( i )->getIntegratedStateType( )  ), 1 );
         }
+
+        // Select the function to convert the integration independent variable to the time (the two might or might not be different)
+        initializeFunctionToConvertIndependentVariableToTime();
     }
 
 

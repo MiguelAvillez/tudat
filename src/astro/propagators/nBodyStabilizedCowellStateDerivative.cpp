@@ -11,7 +11,7 @@ double computePhysicalTimeDerivativeForStabilizedCowell(
         const double sundmanConstant )
 {
     const Eigen::Vector3d position( currentStabilizedCowellState.segment( 0, 3 ) );
-    return sundmanConstant * position.squaredNorm();
+    return sundmanConstant * position.norm();
 }
 
 double computeLinearTimeElementDerivativeForStabilizedCowell(
