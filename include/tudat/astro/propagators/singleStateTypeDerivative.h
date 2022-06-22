@@ -251,6 +251,25 @@ public:
         return false;
     }
 
+    // Function to compute the initial independent variable.
+    /*
+     * Function to compute the initial independent variable to use in the propagation. If propagators with an independent
+     * variable other than time are used (e.g. regularized propagators) the initial independent variable will take a value
+     * different from the initial time - in general, the initial independent variable will take the value zero.
+     * The conventional form is one that is typically used to represent the current state in the
+     * environment (e.g. Body class). For translational dynamics this is the Cartesian position and
+     * velocity).
+     * \param initialOutputSolution Initial state in 'conventional form'
+     * \param initialTime Initial propagation time, at which the state is valid.
+     * \return Independent variable
+     */
+    virtual TimeType computeInitialIndependentVariable (
+            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& initialOutputSolution,
+            const TimeType& initialTime)
+    {
+        return initialTime;
+    }
+
 protected:
 
     // Type of dynamics for which the state derivative is calculated.

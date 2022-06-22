@@ -314,6 +314,21 @@ public:
         return true;
     }
 
+   // Function to compute the initial independent variable.
+   /*
+    * Function to compute the initial independent variable to use in the propagation. For stabilized cowell, the initial
+    * independent variable is a fictitious angle, thus its initial value is considered to be 0.
+    * \param initialOutputSolution Initial state in 'conventional form'
+    * \param initialTime Initial propagation time, at which the state is valid.
+    * \return Independent variable
+    */
+    virtual TimeType computeInitialIndependentVariable (
+            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& initialOutputSolution,
+            const TimeType& initialTime)
+    {
+        return 0.0;
+    }
+
 private:
 
     //! Gravitational parameter of the central body used to convert Cartesian to Keplerian orbits, and vice versa

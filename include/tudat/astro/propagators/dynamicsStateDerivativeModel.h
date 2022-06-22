@@ -263,6 +263,62 @@ public:
                                        state.template cast< StateScalarType >( ) ).template cast< double >( );
     }
 
+    //! Function to compute the initial indepedndent variable.
+    /*!
+     * Function computes the initial independent variable. This will be the initial time if all propagators use time as
+     * independent variable, or some other value if not.
+     * @param initialTime Initial time.
+     * @param initialOutputState State in 'conventional form'.
+     * @return Initial independent variable.
+     */
+    TimeType computeInitialIndependentVariable (const TimeType initialTime, const StateType& initialOutputState )
+    {
+        // Counter for the number of state derivative models that have time as indepdenet variable
+        unsigned int timeAsDependentVariableCounter = 0;
+        std::vector< double > initialNonTimeIndependentVariable;
+
+        // Iterate over all types of equations.
+        std::vector< std::pair< int, int > > currentConventionalStateIndices;
+        for( stateDerivativeModelsIterator_ = stateDerivativeModels_.begin( );
+             stateDerivativeModelsIterator_ != stateDerivativeModels_.end( );
+             stateDerivativeModelsIterator_++ )
+        {
+            currentConventionalStateIndices = conventionalStateIndices_.at( stateDerivativeModelsIterator_->first );
+            for( unsigned int i = 0; i < stateDerivativeModelsIterator_->second.size( ); i++ )
+            {
+                stateDerivativeModelsIterator_->second.at( i )->clearStateDerivativeModel( );
+
+                if (stateDerivativeModelsIterator_->second.at( i )->timeIsADependentVariable( ) )
+                {
+                    ++timeAsDependentVariableCounter;
+
+                    initialNonTimeIndependentVariable.push_back(
+                        stateDerivativeModelsIterator_->second.at( i )->computeInitialIndependentVariable(
+                                initialOutputState.segment( currentConventionalStateIndices.at( i ).first,
+                                                            currentConventionalStateIndices.at( i ).second ),
+                                                            initialTime ) );
+                }
+            }
+        }
+
+        // Throw error if there is more than one propagator that has time as dependent variable.
+        if ( timeAsDependentVariableCounter > 1 )
+        {
+            throw std::runtime_error( "More than 1 propagator (" + std::to_string( timeAsDependentVariableCounter ) +
+                ") has time as a dependent variable.");
+        }
+        // Define the function to return the time if no propagator has time as dependent variable.
+        else if ( timeAsDependentVariableCounter == 0 )
+        {
+            return initialTime;
+        }
+        // A single propagator with time as dependent variable
+        else
+        {
+            return initialNonTimeIndependentVariable.at(0 );
+        }
+    }
+
     //! Function to compute the current physical time from the current independent variable.
     //! The physical time and independent variable are different if the used propagators use an independent variable other
     //! than time (e.g. regularized propagators).
@@ -673,6 +729,11 @@ private:
         }
     }
 
+    //! Function to initialize the function that converts the independent variable to time.
+    /*!
+     * Function loops over all the state derivative models, and if any of those has an independent variable other than
+     * time selects its associated function to convert the independent variable to time.
+     */
     void initializeFunctionToConvertIndependentVariableToTime ( )
     {
         // Counter for the number of state derivative models that have time as indepdenet variable
@@ -711,12 +772,13 @@ private:
             independentVariableToTimeFunction_  = [ = ]( const TimeType independentVariable, const StateType& state )
                     { return independentVariable; };
 
-            timeIsIndependentVariable_ = false;
+            timeIsIndependentVariable_ = true;
         }
         // A single propagator with time as dependent variable
         else
         {
             independentVariableToTimeFunction_ = independentVariableToTimeFunctions.at( 0 );
+            timeIsIndependentVariable_ = false;
         }
     }
 

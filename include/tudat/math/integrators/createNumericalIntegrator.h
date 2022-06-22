@@ -70,7 +70,7 @@ public:
                         const IndependentVariableType initialTimeStep,
                         const int saveFrequency = 1,
                         const bool assessTerminationOnMinorSteps = false ) :
-        integratorType_( integratorType ), initialTime_( initialTime ),
+        integratorType_( integratorType ), initialTime_( initialTime ), initialIndependentVariable_( initialTime ),
         initialTimeStep_( initialTimeStep ), saveFrequency_( saveFrequency ),
         assessTerminationOnMinorSteps_( assessTerminationOnMinorSteps )
     { }
@@ -92,6 +92,8 @@ public:
      *  Start time (independent variable) of numerical integration.
      */
     IndependentVariableType initialTime_;
+
+    IndependentVariableType initialIndependentVariable_;
 
     // Initial time step used in numerical integration
     /*
@@ -781,7 +783,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
         // Create Euler integrator
         integrator = std::make_shared< EulerIntegrator
                 < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                ( stateDerivativeFunction, integratorSettings->initialTime_, initialState ) ;
+                ( stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState ) ;
         break;
     }
     case rungeKutta4:
@@ -789,7 +791,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
         // Create Runge-Kutta 4 integrator
         integrator = std::make_shared< RungeKutta4Integrator
                 < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                ( stateDerivativeFunction, integratorSettings->initialTime_, initialState ) ;
+                ( stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState ) ;
         break;
     }
     case rungeKuttaFixedStepSize:
@@ -802,7 +804,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
         // Create Runge-Kutta fixed step integrator
         integrator = std::make_shared< RungeKuttaFixedStepSizeIntegrator
                 < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                ( stateDerivativeFunction, fixedStepIntegratorSettings->initialTime_, initialState, fixedStepIntegratorSettings->coefficientSet_, fixedStepIntegratorSettings->orderToUse_) ;
+                ( stateDerivativeFunction, fixedStepIntegratorSettings->initialIndependentVariable_, initialState, fixedStepIntegratorSettings->coefficientSet_, fixedStepIntegratorSettings->orderToUse_) ;
         break;
     }
     case rungeKuttaVariableStepSize:
@@ -854,7 +856,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
             // Create Runge-Kutta integrator with scalar tolerances
             integrator = std::make_shared< RungeKuttaVariableStepSizeIntegrator
                     < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                    ( coefficients, stateDerivativeFunction, integratorSettings->initialTime_, initialState,
+                    ( coefficients, stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState,
                       static_cast< IndependentVariableStepType >( scalarTolerancesIntegratorSettings->minimumStepSize_ ),
                       static_cast< IndependentVariableStepType >( scalarTolerancesIntegratorSettings->maximumStepSize_ ),
                       static_cast< typename DependentVariableType::Scalar >( scalarTolerancesIntegratorSettings->relativeErrorTolerance_ ),
@@ -898,7 +900,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
             // Create Runge-Kutta integrator with vector tolerances
             integrator = std::make_shared< RungeKuttaVariableStepSizeIntegrator
                     < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                    ( coefficients, stateDerivativeFunction, integratorSettings->initialTime_, initialState,
+                    ( coefficients, stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState,
                       static_cast< IndependentVariableStepType >( vectorTolerancesIntegratorSettings->minimumStepSize_ ),
                       static_cast< IndependentVariableStepType >( vectorTolerancesIntegratorSettings->maximumStepSize_ ),
                       relativeErrorTolerance, absoluteErrorTolerance,
@@ -943,7 +945,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
                     < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
                     ( getBulirschStoerStepSequence( bulirschStoerIntegratorSettings->extrapolationSequence_,
                                                     bulirschStoerIntegratorSettings->maximumNumberOfSteps_ ),
-                      stateDerivativeFunction, integratorSettings->initialTime_, initialState,
+                      stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState,
                       static_cast< IndependentVariableStepType >( bulirschStoerIntegratorSettings->minimumStepSize_ ),
                       static_cast< IndependentVariableStepType >( bulirschStoerIntegratorSettings->maximumStepSize_ ),
                       bulirschStoerIntegratorSettings->relativeErrorTolerance_,
@@ -986,7 +988,7 @@ DependentVariableType, IndependentVariableStepType > > createIntegrator(
             // Create integrator
             integrator = std::make_shared< AdamsBashforthMoultonIntegrator
                     < IndependentVariableType, DependentVariableType, DependentVariableType, IndependentVariableStepType > >
-                    ( stateDerivativeFunction, integratorSettings->initialTime_, initialState,
+                    ( stateDerivativeFunction, integratorSettings->initialIndependentVariable_, initialState,
                       static_cast< IndependentVariableStepType >( adamsBashforthMoultonIntegratorSettings->minimumStepSize_ ),
                       static_cast< IndependentVariableStepType >( adamsBashforthMoultonIntegratorSettings->maximumStepSize_ ),
                       adamsBashforthMoultonIntegratorSettings->relativeErrorTolerance_,
