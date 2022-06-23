@@ -595,6 +595,7 @@ public:
         // Reset initial time to ensure consistency with multi-arc propagation.
         integratorSettings_->initialTime_ = this->initialPropagationTime_;
 
+        // TODO: deal with selection of initial independent variable in more elegant way
         // Reset initial independent variable
         integratorSettings_->initialIndependentVariable_ = dynamicsStateDerivative_->computeInitialIndependentVariable(
                 this->initialPropagationTime_, initialStates);

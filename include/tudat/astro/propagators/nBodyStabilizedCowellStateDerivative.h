@@ -20,13 +20,12 @@ namespace propagators
 {
 
 //! Function to compute the derivative of the physical time with respect to the fictitious time (Janin, 1974, Eq. 3.10).
-//! @param currentStabilizedCowellState Current state in stabilized Cowell formulation of the body for which the equations of
-//! motions are to be evaluated
+//! @param currentCartesianPosition Current cartesian position
 //! @param sundmanConstant Multiplying constant used in the Sundman transformation
 //! @return Derivative of the physical time with respect to the fictitious time
 double computePhysicalTimeDerivativeForStabilizedCowell(
-        const Eigen::Vector8d& currentStabilizedCowellState,
-        const double sundmanConstant );
+            const Eigen::Vector3d& currentCartesianPosition,
+            const double sundmanConstant );
 
 //! Function to compute the derivative of the linear time element with respect to the fictitious time (Janin, 1974, Eq. 3.4 and 3.11).
 //! \param currentStabilizedCowellState Current state in stabilized Cowell formulation of the body for which the equations of
@@ -175,6 +174,7 @@ public:
             const TimeType time, const Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >& stateOfSystemToBeIntegrated,
             Eigen::Block< Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic > > stateDerivative )
     {
+        std::cerr << time << std::endl;
         // Get total inertial accelerations acting on bodies
         Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic > totalAccelerationInInertialFrame;
         totalAccelerationInInertialFrame.resizeLike(currentCartesianLocalSolution_ );
@@ -200,7 +200,7 @@ public:
         if ( timeType_ == physical_time )
         {
             stateDerivative( orbital_element_conversions::stabilizedCowellTime, 0 ) = computePhysicalTimeDerivativeForStabilizedCowell(
-                    stateOfSystemToBeIntegrated, sundmanConstant_);
+                    stateOfSystemToBeIntegrated.block(0, 0, 3, 1), sundmanConstant_);
         }
         else // Linear time element
         {
@@ -209,7 +209,9 @@ public:
                     stateDerivative( orbital_element_conversions::stabilizedCowellEnergy, 0 ), centralBodyGravitationalParameterFunction_(),
                     nonConservativeAccelerationInInertialFrame);
         }
-        std::cerr << time - 1e7 << ": " << stateDerivative.transpose() << std::endl;
+//        std::cerr << "State: " << stateOfSystemToBeIntegrated.transpose() << std::endl;
+//        std::cerr << "State derivative: " << stateDerivative.transpose() << std::endl;
+
     }
 
     //! Function to convert the stabilized-cowell states of the bodies to the conventional form.
@@ -231,7 +233,7 @@ public:
     {
         currentCartesianLocalSolution.block( 0, 0, 3, 1 ) = internalSolution.block( 0, 0, 3, 1 );
         currentCartesianLocalSolution.block( 3, 0, 3, 1 ) = internalSolution.block( 3, 0, 3, 1 ) /
-                 internalSolution.block( 0, 0, 3, 1 ).norm() / sundmanConstant_;
+                 computePhysicalTimeDerivativeForStabilizedCowell( internalSolution.block(0, 0, 3, 1), sundmanConstant_);
         currentCartesianLocalSolution_ = currentCartesianLocalSolution;
     }
 
@@ -252,11 +254,10 @@ public:
 
         // Position
         currentState.block( 0, 0, 3, 1 ) = cartesianSolution.block( 0, 0, 3, 1 );
-        std::cerr << currentState.transpose() << std::endl;
 
         // Velocity
-        currentState.block( 3, 0, 3, 1 ) = cartesianSolution.block( 3, 0, 3, 1 ) * cartesianSolution.block( 0, 0, 3, 1 ).norm() * sundmanConstant_;
-        std::cerr << currentState.transpose() << std::endl;
+        currentState.block( 3, 0, 3, 1 ) = cartesianSolution.block( 3, 0, 3, 1 ) *
+                computePhysicalTimeDerivativeForStabilizedCowell( cartesianSolution.block(0, 0, 3, 1), sundmanConstant_);
 
         // Energy
         // TODO: computation of potential of conservative accelerations
@@ -298,7 +299,6 @@ public:
     {
         if ( timeType_ == physical_time )
         {
-            std::cerr << "t = " << stateOfSystemToBeIntegrated( orbital_element_conversions::stabilizedCowellTime ) << std::endl;
             return stateOfSystemToBeIntegrated( orbital_element_conversions::stabilizedCowellTime );
         }
         else // Linear time element

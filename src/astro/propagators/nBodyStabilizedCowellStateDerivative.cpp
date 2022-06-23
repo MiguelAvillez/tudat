@@ -7,11 +7,10 @@ namespace propagators
 {
 
 double computePhysicalTimeDerivativeForStabilizedCowell(
-        const Eigen::Vector8d& currentStabilizedCowellState,
+        const Eigen::Vector3d& currentCartesianPosition,
         const double sundmanConstant )
 {
-    const Eigen::Vector3d position( currentStabilizedCowellState.segment( 0, 3 ) );
-    return sundmanConstant * position.norm();
+    return sundmanConstant * currentCartesianPosition.norm();
 }
 
 double computeLinearTimeElementDerivativeForStabilizedCowell(

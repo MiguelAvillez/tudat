@@ -77,8 +77,9 @@ BOOST_AUTO_TEST_CASE( testStabilizedCowellPopagatorForPointMassCentralBodies )
         double buffer = 5.0 * maximumTimeStep;
 
         // Create bodies needed in simulation
+        // TODO: use SSB as origin
         SystemOfBodies bodies = createSystemOfBodies(
-                    getDefaultBodySettings( bodyNames, initialEphemerisTime - buffer, finalEphemerisTime + buffer ) );
+                    getDefaultBodySettings( bodyNames, initialEphemerisTime - buffer, finalEphemerisTime + buffer, "Sun" ) );
 
         // Set accelerations between bodies that are to be taken into account.
         SelectedAccelerationMap accelerationMap;
@@ -134,7 +135,18 @@ BOOST_AUTO_TEST_CASE( testStabilizedCowellPopagatorForPointMassCentralBodies )
             systemInitialState.segment( i * 6 , 6 ) =
                     bodies.at( bodiesToPropagate[ i ] )->getStateInBaseFrameFromEphemeris( initialEphemerisTime ) -
                     bodies.at( centralBodies[ i ] )->getStateInBaseFrameFromEphemeris( initialEphemerisTime );
+
+            std::cout << "Sun" << bodies.at( centralBodies[ i ] )->getStateInBaseFrameFromEphemeris( initialEphemerisTime ).transpose() << std::endl;
+            std::cout << "Earth" << bodies.at( bodiesToPropagate[ i ] )->getStateInBaseFrameFromEphemeris( initialEphemerisTime ).transpose() << std::endl;
         }
+
+        Eigen::Vector6d initialCartesianState = systemInitialState.segment(0, 6);
+        std::cout << "Initial energy: " << (bodies.getBody("Sun")->getGravityFieldModel( )->getGravitationalParameter( ) + bodies.getBody("Earth")->getGravityFieldModel( )->getGravitationalParameter( ) ) /
+            initialCartesianState.segment( 0, 3 ).norm() -
+            std::pow( initialCartesianState.segment( 3, 3 ).norm(), 2.0 ) / 2.0 << std::endl;
+        std::cout << "Initial kepler: " << orbital_element_conversions::convertCartesianToKeplerianElements(
+                    initialCartesianState, bodies.getBody("Sun")->getGravityFieldModel( )->getGravitationalParameter( ) +
+                    bodies.getBody("Earth")->getGravityFieldModel( )->getGravitationalParameter( ) ).transpose() << std::endl;
 
         // Create acceleration models.
         AccelerationMap accelerationModelMap = createAccelerationModelsMap(
@@ -149,7 +161,7 @@ BOOST_AUTO_TEST_CASE( testStabilizedCowellPopagatorForPointMassCentralBodies )
         std::shared_ptr< IntegratorSettings< > > stabilizedCowellIntegratorSettings =
                 std::make_shared< IntegratorSettings< > >
                 ( rungeKutta4,
-                  initialEphemerisTime, 4.626e-10 );
+                  initialEphemerisTime, 5.0e-10 ); //4.626e-10
 
 
         // Select dependent variables to save
@@ -223,9 +235,18 @@ BOOST_AUTO_TEST_CASE( testStabilizedCowellPopagatorForPointMassCentralBodies )
         std::map< double, Eigen::VectorXd > stabilizedCowellRawSolution = dynamicsSimulator.getEquationsOfMotionNumericalSolutionRaw( );
         std::map< double, Eigen::VectorXd > stabilizedCowellDependentVariables = dynamicsSimulator.getDependentVariableHistory( );
 
-        for (std::map< double, Eigen::VectorXd >::iterator it = stabilizedCowellRawSolution.begin(); it != stabilizedCowellRawSolution.end(); it++)
+//        for (std::map< double, Eigen::VectorXd >::iterator it = stabilizedCowellRawSolution.begin(); it != stabilizedCowellRawSolution.end(); it++)
+//        {
+//            std::cout << it->first << ':' << it->second.transpose() << std::endl;
+//        }
+
+        for (std::map< double, Eigen::VectorXd >::iterator it = stabilizedCowellProcessedSolution.begin(); it != stabilizedCowellProcessedSolution.end(); it++)
         {
-            std::cout << it->first - 1.0e7 << ':' << it->second.transpose() << std::endl;
+            Eigen::Vector6d cartesianState = it->second.transpose();
+            Eigen::Vector6d keplerState = orbital_element_conversions::convertCartesianToKeplerianElements(
+                    cartesianState, bodies.getBody("Sun")->getGravityFieldModel( )->getGravitationalParameter( ) +
+                     bodies.getBody("Earth")->getGravityFieldModel( )->getGravitationalParameter( ));
+            std::cout << it->first << ':' << keplerState.transpose() << std::endl;
         }
 
 

@@ -271,7 +271,8 @@ public:
      * @param initialOutputState State in 'conventional form'.
      * @return Initial independent variable.
      */
-    TimeType computeInitialIndependentVariable (const TimeType initialTime, const StateType& initialOutputState )
+    TimeType computeInitialIndependentVariable (const TimeType initialTime,
+                                                const Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >& initialOutputState )
     {
         // Counter for the number of state derivative models that have time as indepdenet variable
         unsigned int timeAsDependentVariableCounter = 0;
