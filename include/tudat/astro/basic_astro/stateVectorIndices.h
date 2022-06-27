@@ -135,8 +135,22 @@ enum StabilizedCowellElementIndices
     stabilizedCowellXCartesianVelocityIndex = 3,
     stabilizedCowellYCartesianVelocityIndex = 4,
     stabilizedCowellZCartesianVelocityIndex = 5,
-    stabilizedCowellEnergy = 6,
-    stabilizedCowellTime = 7,
+    stabilizedCowellEnergyIndex = 6,
+    stabilizedCowellTimeIndex = 7,
+};
+
+//! Dromo indices
+enum Dromo
+{
+    dromoTimeIndex = 0,
+    dromoElement1Index = 1,
+    dromoElement2Index = 2,
+    dromoElement3Index = 3,
+    dromoEnergyIndex = 3,
+    dromoElement4Index = 4,
+    dromoElement5Index = 5,
+    dromoElement6Index = 6,
+    dromoElement7Index = 7,
 };
 
 } // namespace orbital_element_conversions

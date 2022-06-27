@@ -1,3 +1,14 @@
+/*    Copyright (c) 2010-2022, Delft University of Technology
+ *    All rigths reserved
+ *
+ *    This file is part of the Tudat. Redistribution and use in source and
+ *    binary forms, with or without modification, are permitted exclusively
+ *    under the terms of the Modified BSD license. You should have received
+ *    a copy of the license with this file. If not, please or visit:
+ *    http://tudat.tudelft.nl/LICENSE.
+ */
+
+
 #include "tudat/astro/propagators/nBodyStabilizedCowellStateDerivative.h"
 
 namespace tudat
@@ -20,7 +31,7 @@ double computeLinearTimeElementDerivativeForStabilizedCowell(
         const double centralBodyGravitationalParameter,
         const Eigen::Vector3d& nonConservativeAccelerationsInInertialFrame)
 {
-    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergy );
+    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergyIndex );
     const Eigen::Vector3d position( currentStabilizedCowellState.segment( 0, 3 ) );
     const double positionNorm = position.norm();
     const Eigen::Vector3d velocity( currentStabilizedCowellState.segment( 3, 3 ) );
@@ -36,7 +47,7 @@ double computeLinearTimeElementToPhysicalTimeBias (
         const Eigen::Vector8d& currentStabilizedCowellState,
         const double sundmanConstant)
 {
-    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergy );
+    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergyIndex );
     const Eigen::Vector3d position( currentStabilizedCowellState.segment( 0, 3 ) );
     const Eigen::Vector3d velocity( currentStabilizedCowellState.segment( 3, 3 ) );
 
@@ -47,7 +58,7 @@ double convertLinearTimeElementToPhysicalTime (
         const Eigen::Vector8d& currentStabilizedCowellState,
         const double sundmanConstant)
 {
-    const double linearTimeElement = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTime );
+    const double linearTimeElement = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTimeIndex );
 
     double physicalTime = linearTimeElement -
             computeLinearTimeElementToPhysicalTimeBias(currentStabilizedCowellState, sundmanConstant);
@@ -59,7 +70,7 @@ double convertPhysicalTimeToLinearTimeElement (
         const Eigen::Vector8d& currentStabilizedCowellState,
         const double sundmanConstant)
 {
-    const double physicalTime = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTime );
+    const double physicalTime = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellTimeIndex );
 
     double linearTimeElement = physicalTime +
             computeLinearTimeElementToPhysicalTimeBias(currentStabilizedCowellState, sundmanConstant);
@@ -78,11 +89,11 @@ Eigen::Vector7d computeStateDerivativeExceptTimeForStabilizedCowell(
     const double positionNorm = position.norm();
     const Eigen::Vector3d velocity( currentStabilizedCowellState.segment( 3, 3 ) );
     const double velocityNorm = velocity.norm();
-    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergy );
+    const double energy = currentStabilizedCowellState( orbital_element_conversions::stabilizedCowellEnergyIndex );
 
     Eigen::Vector7d stateDerivative;
 
-    stateDerivative( orbital_element_conversions::stabilizedCowellEnergy ) =
+    stateDerivative( orbital_element_conversions::stabilizedCowellEnergyIndex ) =
             - ( nonConservativeAccelerationsInInertialFrame - conservativeAccelerationsInInertialFrame).dot( velocity );
 
     stateDerivative( orbital_element_conversions::stabilizedCowellXCartesianPositionIndex ) =

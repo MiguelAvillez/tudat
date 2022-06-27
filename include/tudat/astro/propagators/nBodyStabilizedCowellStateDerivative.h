@@ -199,14 +199,14 @@ public:
         // Evaluate time derivative
         if ( timeType_ == physical_time )
         {
-            stateDerivative( orbital_element_conversions::stabilizedCowellTime, 0 ) = computePhysicalTimeDerivativeForStabilizedCowell(
+            stateDerivative(orbital_element_conversions::stabilizedCowellTimeIndex, 0 ) = computePhysicalTimeDerivativeForStabilizedCowell(
                     stateOfSystemToBeIntegrated.block(0, 0, 3, 1), sundmanConstant_);
         }
         else // Linear time element
         {
-            stateDerivative( orbital_element_conversions::stabilizedCowellTime, 0 ) = computeLinearTimeElementDerivativeForStabilizedCowell(
+            stateDerivative(orbital_element_conversions::stabilizedCowellTimeIndex, 0 ) = computeLinearTimeElementDerivativeForStabilizedCowell(
                     stateOfSystemToBeIntegrated, sundmanConstant_,
-                    stateDerivative( orbital_element_conversions::stabilizedCowellEnergy, 0 ), centralBodyGravitationalParameterFunction_(),
+                    stateDerivative(orbital_element_conversions::stabilizedCowellEnergyIndex, 0 ), centralBodyGravitationalParameterFunction_(),
                     nonConservativeAccelerationInInertialFrame);
         }
 //        std::cerr << "State: " << stateOfSystemToBeIntegrated.transpose() << std::endl;
@@ -262,16 +262,16 @@ public:
         // Energy
         // TODO: computation of potential of conservative accelerations
         double conservativeAccelerationsPotential = 0.0;
-        currentState( orbital_element_conversions::stabilizedCowellEnergy, 0 ) =
+        currentState(orbital_element_conversions::stabilizedCowellEnergyIndex, 0 ) =
                 computeEnergy( centralBodyGravitationalParameterFunction_(), cartesianSolution, conservativeAccelerationsPotential);
 
         if ( timeType_ == physical_time )
         {
-            currentState( orbital_element_conversions::stabilizedCowellTime, 0 ) = physicalTime;
+            currentState(orbital_element_conversions::stabilizedCowellTimeIndex, 0 ) = physicalTime;
         }
         else // Linear time element
         {
-            currentState( orbital_element_conversions::stabilizedCowellTime, 0 ) = convertPhysicalTimeToLinearTimeElement(
+            currentState(orbital_element_conversions::stabilizedCowellTimeIndex, 0 ) = convertPhysicalTimeToLinearTimeElement(
                     currentState, sundmanConstant_);
         }
 
@@ -299,7 +299,7 @@ public:
     {
         if ( timeType_ == physical_time )
         {
-            return stateOfSystemToBeIntegrated( orbital_element_conversions::stabilizedCowellTime );
+            return stateOfSystemToBeIntegrated( orbital_element_conversions::stabilizedCowellTimeIndex );
         }
         else // Linear time element
         {

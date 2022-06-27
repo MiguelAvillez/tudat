@@ -169,24 +169,18 @@ public:
             stateDerivative_.resize( state.rows( ), state.cols( ) );
         }
 
-        // Create variable to hold the time
-        TimeType time = TUDAT_NAN;
+        // Get the physical time
+        TimeType time = this->convertIndependentVariableToTime(independentVariable, state);
 
         // If dynamical equations are integrated, update the environment with the current state.
         if( evaluateDynamicsEquations_ )
         {
-            // Get the physical time
-            time = this->convertIndependentVariableToTime(independentVariable, state);
-
             convertCurrentStateToGlobalRepresentationPerType( state, time, evaluateVariationalEquations_ );
             environmentUpdateFunction_( time, currentStatesPerTypeInConventionalRepresentation_,
                                         integratedStatesFromEnvironment_ );
         }
         else
         {
-            // If the dynamical equations are not integrated, the independent variable is the time
-            time = independentVariable;
-
             environmentUpdateFunction_(
                         time, std::unordered_map<
                         IntegratedStateType, Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > >( ),
