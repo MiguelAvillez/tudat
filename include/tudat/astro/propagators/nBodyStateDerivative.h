@@ -46,9 +46,10 @@ enum TranslationalPropagatorType
 };
 
 // Enum listing the time types that can be integrated by regularized propagators
-enum RegularizedPropagatorTimeType
+enum TimeElementType
 {
     physical_time,
+    scaled_physical_time,
     constant_time_element,
     linear_time_element
 };

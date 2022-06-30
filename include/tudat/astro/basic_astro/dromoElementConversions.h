@@ -20,6 +20,8 @@
 #include "tudat/basics/basicTypedefs.h"
 #include "tudat/math/basic/mathematicalConstants.h"
 #include "tudat/astro/basic_astro/stateVectorIndices.h"
+#include "tudat/astro/basic_astro/orbitalElementConversions.h"
+#include "tudat/astro/propagators/nBodyStateDerivative.h"
 
 namespace tudat
 {
@@ -75,6 +77,7 @@ Eigen::Matrix3d computeDromoMPhiMatrix (const double initialIndependentVariable,
 //! Convert the time to the time used in Dromo.
 /*!
  * Convert the time to the time used in Dromo, i.e. makes the time dimensionless.
+ *
  * @param time Dimensional time.
  * @param centralBodyGravitationalParameter Central body gravitational parameter.
  * @param unitOfLength Dromo unit of length.
@@ -94,13 +97,11 @@ double convertDromoTimeToTime(const double dimensionlessDromoTime,
     return dimensionlessDromoTime * computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
 }
 
-double computeDromoTimeToTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
-                                         const double currentIndependentVariable,
-                                         const bool usingEnergyElement)
+void computeEnergyAndDromoElement3(const Eigen::Vector8d& dromoElementsExceptTime,
+                                   const bool usingEnergyElement,
+                                   double& energy,
+                                   double& dromoElement3)
 {
-    double energy;
-    double dromoElement3;
-
     if ( usingEnergyElement )
     {
         energy = dromoElementsExceptTime( dromoEnergyIndex );
@@ -114,11 +115,64 @@ double computeDromoTimeToTimeElementBias(const Eigen::Vector8d& dromoElementsExc
                 std::pow( dromoElementsExceptTime( dromoElement2Index), 2 ) -
                 std::pow( dromoElementsExceptTime( dromoElement3Index), 2 ) ) / 2;
     }
+}
 
-    double s = dromoElement3 + dromoElementsExceptTime( dromoElement1Index ) * std::cos( currentIndependentVariable) +
-            dromoElementsExceptTime( dromoElement2Index ) * std::sin( currentIndependentVariable );
-    double radialVelocity = dromoElementsExceptTime( dromoElement1Index ) * std::sin( currentIndependentVariable) -
-            dromoElementsExceptTime( dromoElement2Index ) * std::cos( currentIndependentVariable );
+//! Compute the Dromo term s.
+/*!
+ * Compute the Dromo term s, Eq. 40 of Bau (2013).
+ *
+ * @param dromoElements Dromo state
+ * @param currentIndependentVariable Current independent variable.
+ * @param dromoElement3 Value of the zeta3 Dromo element.
+ * @return s
+ */
+double computeDromoS(const Eigen::Vector8d& dromoElements,
+                     const double currentIndependentVariable,
+                     const double dromoElement3)
+{
+    return dromoElement3 + dromoElements( dromoElement1Index ) * std::cos( currentIndependentVariable) +
+           dromoElements( dromoElement2Index ) * std::sin( currentIndependentVariable );
+}
+
+//! Compute the radial velocity.
+/*!
+ * Compute the radial velocity, Eq. 41 of Bau (2013).
+ *
+ * @param dromoElements Dromo state
+ * @param currentIndependentVariable Current independent variable.
+ * @return Radial velocity
+ */
+double computeDromoRadialVelocity (const Eigen::Vector8d& dromoElements,
+                                   const double currentIndependentVariable)
+{
+    return dromoElements( dromoElement1Index ) * std::sin( currentIndependentVariable) -
+            dromoElements( dromoElement2Index ) * std::cos( currentIndependentVariable );
+}
+
+//! Compute the transverse velocity.
+/*!
+ * Compute the transverse velocity., Eq. 42 of Bau (2013).
+ *
+ * @param s Dromo s term.
+ * @param perturbingPotential Potential of perturbing accelerations.
+ * @return Transverse velocity
+ */
+double computeDromoTransverseVelocity (const double s,
+                                       const double perturbingPotential)
+{
+    return std::sqrt( std::pow( s, 2 ) - 2 * perturbingPotential );
+}
+
+double computeDromoTimeToTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
+                                         const double currentIndependentVariable,
+                                         const bool usingEnergyElement)
+{
+    double energy;
+    double dromoElement3;
+    computeEnergyAndDromoElement3(dromoElementsExceptTime, usingEnergyElement, energy, dromoElement3);
+
+    double s = computeDromoS( dromoElementsExceptTime, currentIndependentVariable, dromoElement3 );
+    double radialVelocity = computeDromoRadialVelocity( dromoElementsExceptTime, currentIndependentVariable );
 
     return - radialVelocity / ( 2 * energy * dromoElement3 * s ) - 1 / ( energy * std::sqrt( -2 * energy) ) *
         std::atan2( radialVelocity, s + std::sqrt( -2 * energy) );
@@ -147,18 +201,72 @@ double convertDromoLinearTimeElementToTime(const double linearTimeElement,
     return convertDromoTimeToTime( dimensionlessDromoTime, centralBodyGravitationalParameter, unitOfLength );
 }
 
+double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
+                                                   const double currentIndependentVariable,
+                                                   const bool usingEnergyElement)
+{
+    double energy;
+    double dromoElement3;
+    computeEnergyAndDromoElement3(dromoElementsExceptTime, usingEnergyElement, energy, dromoElement3);
 
-Eigen::Vector8d convertCartesianToDromoElementsExceptTime(const Eigen::Vector6d& cartesianElements,
-                                                          const double centralBodyGravitationalParameter,
-                                                          const double unitOfLength,
-                                                          const double initialIndependentVariable,
-                                                          const double currentIndependentVariable,
-                                                          const double perturbingPotential,
-                                                          const bool useEnergyElement)
+    double semiMajorAxis = -1 / ( 2 * energy );
+
+    return - std::pow( semiMajorAxis, 3/2 ) * currentIndependentVariable;
+}
+
+double convertTimeToDromoConstantTimeElement(const double time,
+                                             const double currentIndependentVariable,
+                                             const Eigen::Vector8d& dromoElementsExceptTime,
+                                             const double centralBodyGravitationalParameter,
+                                             const double unitOfLength,
+                                             const bool usingEnergyElement)
+{
+    double linearTimeElement = convertTimeToDromoLinearTimeElement(
+            time, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter, unitOfLength,
+            usingEnergyElement);
+
+    return linearTimeElement + computeDromoLinearToConstantTimeElementBias(
+            dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
+}
+
+double convertDromoConstantTimeElementToTime(const double constantTimeElement,
+                                             const double currentIndependentVariable,
+                                             const Eigen::Vector8d& dromoElementsExceptTime,
+                                             const double centralBodyGravitationalParameter,
+                                             const double unitOfLength,
+                                             const bool usingEnergyElement)
+{
+    const double linearTimeElement = constantTimeElement - computeDromoLinearToConstantTimeElementBias(
+            dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
+    return convertDromoLinearTimeElementToTime(
+            linearTimeElement, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter,
+            unitOfLength, usingEnergyElement);
+}
+
+Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesianElements,
+                                                const double centralBodyGravitationalParameter,
+                                                const double unitOfLength,
+                                                const double perturbingPotential,
+                                                const double timeFromPropagationStart,
+                                                const bool useEnergyElement,
+                                                const propagators::TimeElementType timeType,
+                                                double initialIndependentVariable = TUDAT_NAN,
+                                                double currentIndependentVariable = TUDAT_NAN)
 {
     // Declaring eventual output vector.
     Eigen::Vector8d dromoElements;
-    dromoElements( 0 ) = TUDAT_NAN;
+
+    // If current independent variable isn't defined set values to default ones
+    if ( isnan(currentIndependentVariable) )
+    {
+        if ( isnan(initialIndependentVariable) )
+        {
+            Eigen::Vector6d keplerElements = convertCartesianToKeplerianElements( cartesianElements,
+                                                                                  centralBodyGravitationalParameter );
+            initialIndependentVariable = keplerElements( trueAnomalyIndex );
+        }
+        currentIndependentVariable = initialIndependentVariable;
+    }
 
     // Compute dimensionless cartesian position and velocity
     double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
@@ -192,9 +300,34 @@ Eigen::Vector8d convertCartesianToDromoElementsExceptTime(const Eigen::Vector6d&
 
     dromoElements( dromoElement7Index ) = -0.5 * std::sqrt( 1 + Q0(1,1) + Q0(2,2) + Q0(3,3) );
 
-    dromoElements( dromoElement4Index ) = ( Q0(3,2) - Q0(2,3) ) / ( 4 * dromoElements( dromoElement7Index ) );
-    dromoElements( dromoElement5Index ) = ( Q0(1,3) - Q0(3,1) ) / ( 4 * dromoElements( dromoElement7Index ) );
-    dromoElements( dromoElement6Index ) = ( Q0(2,1) - Q0(1,2) ) / ( 4 * dromoElements( dromoElement7Index ) );
+    const double tolerance = 1e-10;
+    if ( std::abs( dromoElements( dromoElement7Index ) ) > tolerance )
+    {
+        dromoElements( dromoElement4Index ) = ( Q0(3,2) - Q0(2,3) ) / ( 4 * dromoElements( dromoElement7Index ) );
+        dromoElements( dromoElement5Index ) = ( Q0(1,3) - Q0(3,1) ) / ( 4 * dromoElements( dromoElement7Index ) );
+        dromoElements( dromoElement6Index ) = ( Q0(2,1) - Q0(1,2) ) / ( 4 * dromoElements( dromoElement7Index ) );
+    }
+    else
+    {
+        dromoElements( dromoElement6Index ) = std::sqrt( ( Q0(3,3) + 1 ) / 2 );
+        if ( std::abs( dromoElements( dromoElement6Index ) ) > tolerance )
+        {
+            dromoElements( dromoElement4Index ) = Q0(1,3) / ( 2 * dromoElements( dromoElement6Index ) );
+            dromoElements( dromoElement5Index ) = Q0(2,3) / ( 2 * dromoElements( dromoElement6Index ) );
+        }
+        else
+        {
+            dromoElements( dromoElement4Index ) = std::sqrt( ( 1 - Q0(2,2) ) / 2 );
+            if ( std::abs( dromoElements( dromoElement4Index ) ) > tolerance )
+            {
+                dromoElements( dromoElement5Index ) = Q0(1,2) / ( 2 * dromoElements( dromoElement4Index ) );
+            }
+            else
+            {
+                dromoElements( dromoElement5Index ) = 1;
+            }
+        }
+    }
 
     // Select the dromo element 3 to use based on the flag
     if ( useEnergyElement )
@@ -208,7 +341,71 @@ Eigen::Vector8d convertCartesianToDromoElementsExceptTime(const Eigen::Vector6d&
         dromoElements( dromoElement3Index ) = dromoElement3;
     }
 
+    if ( timeType == propagators::physical_time)
+    {
+        dromoElements( dromoTimeIndex ) = convertTimeToDromoTime( timeFromPropagationStart, centralBodyGravitationalParameter,
+                                                                  unitOfLength );
+    }
+    else if ( timeType == propagators::linear_time_element )
+    {
+        dromoElements( dromoTimeIndex ) = convertTimeToDromoLinearTimeElement(
+                timeFromPropagationStart, currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
+                unitOfLength, useEnergyElement);
+    }
+    else if ( timeType == propagators::constant_time_element )
+    {
+        dromoElements( dromoTimeIndex ) = convertTimeToDromoConstantTimeElement(
+                timeFromPropagationStart, currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
+                unitOfLength, useEnergyElement);
+    }
+
     return dromoElements;
+}
+
+Eigen::Vector6d convertDromoToCartesianElements(const Eigen::Vector8d dromoElements,
+                                                const double centralBodyGravitationalParameter,
+                                                const double initialIndependentVariable,
+                                                const double currentIndependentVariable,
+                                                const double unitOfLength,
+                                                const double perturbingPotential,
+                                                const bool usingEnergyElement)
+{
+    // Declaring eventual output vector.
+    Eigen::Vector6d cartesianElements;
+
+    double energy;
+    double dromoElement3;
+    computeEnergyAndDromoElement3( dromoElements, usingEnergyElement, energy, dromoElement3 );
+
+    const double positionNorm = 1 / ( dromoElement3 * computeDromoS( dromoElements, currentIndependentVariable, dromoElement3 ) );
+
+    const double zeta4sq = std::pow( dromoElements( dromoElement4Index ), 2 );
+    const double zeta5sq = std::pow( dromoElements( dromoElement5Index ), 2 );
+    const double zeta6sq = std::pow( dromoElements( dromoElement6Index ), 2 );
+    const double zeta45 = dromoElements( dromoElement4Index ) * dromoElements( dromoElement5Index );
+    const double zeta46 = dromoElements( dromoElement4Index ) * dromoElements( dromoElement6Index );
+    const double zeta47 = dromoElements( dromoElement4Index ) * dromoElements( dromoElement7Index );
+    const double zeta56 = dromoElements( dromoElement5Index ) * dromoElements( dromoElement6Index );
+    const double zeta57 = dromoElements( dromoElement5Index ) * dromoElements( dromoElement7Index );
+    const double zeta67 = dromoElements( dromoElement6Index ) * dromoElements( dromoElement7Index );
+
+    Eigen::Matrix3d Q0;
+    Q0 << 1 - 2*zeta5sq - 2*zeta6sq, 2*zeta45 - 2*zeta67, 2*zeta46 + 2*zeta57,
+          2*zeta45 + 2*zeta67, 1 - 2*zeta4sq - 2*zeta6sq, 2*zeta56 - 2*zeta47,
+          2*zeta46 - 2*zeta57, 2*zeta56 + 2 * zeta47, 1 - 2*zeta4sq - 2*zeta5sq;
+
+    Eigen::Matrix3d QRI = Q0 * computeDromoMPhiMatrix( initialIndependentVariable, currentIndependentVariable );
+
+    // Compute dimensionless position and then make it dimensional
+    cartesianElements.segment(0, 3) = QRI * (Eigen::Vector3d() << positionNorm, 0, 0).finished() * unitOfLength;
+
+    // Compute dimensionless velocity and then make it dimensionless
+    cartesianElements.segment(3, 3) = QRI * (Eigen::Vector3d() <<
+            computeDromoRadialVelocity( dromoElements, currentIndependentVariable ),
+            computeDromoTransverseVelocity( computeDromoS( dromoElements, currentIndependentVariable, dromoElement3 ), perturbingPotential ),
+            0).finished() * unitOfLength / computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength );
+
+    return cartesianElements;
 }
 
 } // namespace orbital_element_conversions
