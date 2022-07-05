@@ -861,6 +861,10 @@ std::vector< std::string > > createEnvironmentUpdaterSettingsForDependentVariabl
         variablesToUpdate[ body_translational_state_update ].push_back( dependentVariableSaveSettings->associatedBody_ );
         variablesToUpdate[ body_translational_state_update ].push_back( dependentVariableSaveSettings->secondaryBody_ );
         break;
+    case custom_dependent_variable_with_input_relative_position:
+        variablesToUpdate[ body_translational_state_update ].push_back( dependentVariableSaveSettings->associatedBody_ );
+        variablesToUpdate[ body_translational_state_update ].push_back( dependentVariableSaveSettings->secondaryBody_ );
+        break;
     default:
         throw std::runtime_error( "Error when getting environment updates for dependent variables, parameter " +
                                   std::to_string( dependentVariableSaveSettings->dependentVariableType_ ) + " not found." );

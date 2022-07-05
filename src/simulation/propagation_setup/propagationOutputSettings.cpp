@@ -244,6 +244,9 @@ std::string getDependentVariableName( const std::shared_ptr< SingleDependentVari
     case gravity_field_laplacian_of_potential_dependent_variable:
         variableName = "Gravity field laplacian of potential";
         break;
+    case custom_dependent_variable_with_input_relative_position:
+        variableName = "Custom dependent variable with relative position as input";
+        break;
     default:
         std::string errorMessage = "Error, dependent variable " +
                 std::to_string( propagationDependentVariables ) +

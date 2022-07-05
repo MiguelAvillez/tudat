@@ -414,6 +414,19 @@ int getDependentVariableSize(
     case gravity_field_laplacian_of_potential_dependent_variable:
         variableSize = 1;
         break;
+    case custom_dependent_variable_with_input_relative_position:
+        if( std::dynamic_pointer_cast< CustomDependentVariableWithInputRelPosSaveSettings >(
+                    dependentVariableSettings ) == nullptr )
+        {
+            std::string errorMessage = "Error, input for custom dependent variable parameter size ";
+            throw std::runtime_error( errorMessage );
+        }
+        else
+        {
+            variableSize = std::dynamic_pointer_cast< CustomDependentVariableWithInputRelPosSaveSettings >(
+                    dependentVariableSettings )->dependentVariableSize_;
+        }
+        break;
     default:
         std::string errorMessage = "Error, did not recognize dependent variable size of type: " +
                 std::to_string( dependentVariableSettings->dependentVariableType_ );

@@ -120,7 +120,8 @@ enum PropagationDependentVariables
     rsw_to_inertial_frame_rotation_dependent_variable = 47,
     custom_dependent_variable = 48,
     gravity_field_potential_dependent_variable = 49,
-    gravity_field_laplacian_of_potential_dependent_variable = 50
+    gravity_field_laplacian_of_potential_dependent_variable = 50,
+    custom_dependent_variable_with_input_relative_position = 51
 };
 
 // Functional base class for defining settings for dependent variables that are to be saved during propagation
@@ -509,6 +510,26 @@ public:
 
 };
 
+
+class CustomDependentVariableWithInputRelPosSaveSettings: public SingleDependentVariableSaveSettings
+{
+public:
+
+
+    CustomDependentVariableWithInputRelPosSaveSettings(
+            const std::function< Eigen::VectorXd( Eigen::Vector3d ) > customDependentVariableFunction,
+            const int dependentVariableSize,
+            const std::string& associatedBody,
+            const std::string& secondaryBody ):
+        SingleDependentVariableSaveSettings(
+            custom_dependent_variable_with_input_relative_position, associatedBody, secondaryBody ),
+        customDependentVariableFunction_( customDependentVariableFunction ), dependentVariableSize_( dependentVariableSize ){ }
+
+    const std::function< Eigen::VectorXd( Eigen::Vector3d ) > customDependentVariableFunction_;
+
+    const int dependentVariableSize_;
+
+};
 
 
 
@@ -1101,6 +1122,16 @@ inline std::shared_ptr< SingleDependentVariableSaveSettings > customDependentVar
 {
     return std::make_shared< CustomDependentVariableSaveSettings >(
                 customDependentVariableFunction,  dependentVariableSize );
+}
+
+inline std::shared_ptr< SingleDependentVariableSaveSettings > customDependentWithInputRelPosVariableSaveSettings(
+        const std::function< Eigen::VectorXd( Eigen::Vector3d ) > customDependentVariableFunction,
+        const int dependentVariableSize,
+        const std::string& associatedBody,
+        const std::string& secondaryBody = "")
+{
+    return std::make_shared< CustomDependentVariableWithInputRelPosSaveSettings >(
+                customDependentVariableFunction,  dependentVariableSize, associatedBody, secondaryBody );
 }
 
 inline std::shared_ptr< SingleDependentVariableSaveSettings > gravityFieldPotentialDependentVariable(

@@ -1189,6 +1189,36 @@ std::pair< std::function< Eigen::VectorXd( ) >, int > getVectorDependentVariable
         }
         break;
     }
+    case custom_dependent_variable_with_input_relative_position:
+    {
+        std::shared_ptr< CustomDependentVariableWithInputRelPosSaveSettings > customVariableSettings =
+                std::dynamic_pointer_cast< CustomDependentVariableWithInputRelPosSaveSettings >( dependentVariableSettings );
+
+        if( customVariableSettings == nullptr )
+        {
+            std::string errorMessage= "Error, inconsistent inout when creating dependent variable function of type custom_dependent_variable_with_input_relative_position";
+            throw std::runtime_error( errorMessage );
+        }
+
+        std::function< Eigen::Vector3d( ) > positionFunctionOfRelativeBody =
+                    std::bind( &simulation_setup::Body::getPosition, bodies.at( bodyWithProperty ) );
+        std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody =
+                std::bind( &simulation_setup::Body::getPosition, bodies.at( secondaryBody ) );
+
+        variableFunction = [=]( )
+        {
+            Eigen::VectorXd customVariables = customVariableSettings->customDependentVariableFunction_(
+                    positionFunctionOfRelativeBody() - positionFunctionOfCentralBody() );
+            if( customVariables.rows( ) != customVariableSettings->dependentVariableSize_ )
+            {
+                throw std::runtime_error( "Error when retrieving custom dependent variable, actual size is different from pre-defined size" );
+            }
+            return customVariables;
+        };
+        parameterSize = customVariableSettings->dependentVariableSize_;
+
+        break;
+    }
     default:
         std::string errorMessage =
                 "Error, did not recognize vector dependent variable type when making variable function: " +
