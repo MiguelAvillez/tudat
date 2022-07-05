@@ -1859,6 +1859,36 @@ std::function< double( ) > getDoubleDependentVariableFunction(
 
             break;
         }
+        case custom_dependent_variable_with_input_relative_position:
+        {
+            std::shared_ptr< CustomDependentVariableWithInputRelPosSaveSettings > customVariableSettings =
+                    std::dynamic_pointer_cast< CustomDependentVariableWithInputRelPosSaveSettings >( dependentVariableSettings );
+
+            if( customVariableSettings == nullptr )
+            {
+                std::string errorMessage= "Error, inconsistent inout when creating dependent variable function of type custom_dependent_variable_with_input_relative_position";
+                throw std::runtime_error( errorMessage );
+            }
+
+            if ( customVariableSettings->dependentVariableSize_ != 1 )
+            {
+                throw std::runtime_error( "Error when computing scalar custom dependent variable, size is different from 1" );
+            }
+
+            std::function< Eigen::Vector3d( ) > positionFunctionOfRelativeBody =
+                        std::bind( &simulation_setup::Body::getPosition, bodies.at( bodyWithProperty ) );
+            std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody =
+                    std::bind( &simulation_setup::Body::getPosition, bodies.at( secondaryBody ) );
+
+            variableFunction = [=]( )
+            {
+                double customVariables = customVariableSettings->customDependentVariableFunction_(
+                        positionFunctionOfRelativeBody() - positionFunctionOfCentralBody() )(0);
+                return customVariables;
+            };
+
+            break;
+        }
         default:
             std::string errorMessage =
                     "Error, did not recognize double dependent variable type when making variable function: " +
