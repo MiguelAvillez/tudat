@@ -78,23 +78,23 @@ Eigen::Matrix3d computeDromoMPhiMatrix (const double initialIndependentVariable,
 /*!
  * Convert the time to the time used in Dromo, i.e. makes the time dimensionless.
  *
- * @param time Dimensional time.
+ * @param physicalTime Dimensional time.
  * @param centralBodyGravitationalParameter Central body gravitational parameter.
  * @param unitOfLength Dromo unit of length.
  * @return Dromo time.
  */
-double convertTimeToDromoTime(const double time,
-                              const double centralBodyGravitationalParameter,
-                              const double unitOfLength)
+double convertPhysicalTimeToScaledTime(const double physicalTime,
+                                       const double centralBodyGravitationalParameter,
+                                       const double unitOfLength)
 {
-    return time / computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
+    return physicalTime / computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength);
 }
 
-double convertDromoTimeToTime(const double dimensionlessDromoTime,
-                              const double centralBodyGravitationalParameter,
-                              const double unitOfLength)
+double convertScaledTimeToPhysicalTime(const double scaledTime,
+                                       const double centralBodyGravitationalParameter,
+                                       const double unitOfLength)
 {
-    return dimensionlessDromoTime * computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
+    return scaledTime * computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength);
 }
 
 void computeEnergyAndDromoElement3(const Eigen::Vector8d& dromoElementsExceptTime,
@@ -163,9 +163,9 @@ double computeDromoTransverseVelocity (const double s,
     return std::sqrt( std::pow( s, 2 ) - 2 * perturbingPotential );
 }
 
-double computeDromoTimeToTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
-                                         const double currentIndependentVariable,
-                                         const bool usingEnergyElement)
+double computeDromoScaledTimeToLinearTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
+                                                     const double currentIndependentVariable,
+                                                     const bool usingEnergyElement)
 {
     double energy;
     double dromoElement3;
@@ -178,27 +178,28 @@ double computeDromoTimeToTimeElementBias(const Eigen::Vector8d& dromoElementsExc
         std::atan2( radialVelocity, s + std::sqrt( -2 * energy) );
 }
 
-double convertTimeToDromoLinearTimeElement(const double time,
-                                           const double currentIndependentVariable,
-                                           const Eigen::Vector8d& dromoElementsExceptTime,
-                                           const double centralBodyGravitationalParameter,
-                                           const double unitOfLength,
-                                           const bool usingEnergyElement)
+double convertPhysicalTimeToDromoLinearTimeElement(const double physicalTime,
+                                                   const double currentIndependentVariable,
+                                                   const Eigen::Vector8d& dromoElementsExceptTime,
+                                                   const double centralBodyGravitationalParameter,
+                                                   const double unitOfLength,
+                                                   const bool usingEnergyElement)
 {
-    return convertTimeToDromoTime( time, centralBodyGravitationalParameter, unitOfLength ) +
-            computeDromoTimeToTimeElementBias( dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
+    return convertPhysicalTimeToScaledTime( physicalTime, centralBodyGravitationalParameter, unitOfLength ) +
+           computeDromoScaledTimeToLinearTimeElementBias( dromoElementsExceptTime, currentIndependentVariable,
+                                                           usingEnergyElement );
 }
 
-double convertDromoLinearTimeElementToTime(const double linearTimeElement,
-                                           const double currentIndependentVariable,
-                                           const Eigen::Vector8d& dromoElementsExceptTime,
-                                           const double centralBodyGravitationalParameter,
-                                           const double unitOfLength,
-                                           const bool usingEnergyElement)
+double convertDromoLinearTimeElementToPhysicalTime(const double linearTimeElement,
+                                                   const double currentIndependentVariable,
+                                                   const Eigen::Vector8d& dromoElementsExceptTime,
+                                                   const double centralBodyGravitationalParameter,
+                                                   const double unitOfLength,
+                                                   const bool usingEnergyElement)
 {
-    const double dimensionlessDromoTime = linearTimeElement - computeDromoTimeToTimeElementBias(
-            dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
-    return convertDromoTimeToTime( dimensionlessDromoTime, centralBodyGravitationalParameter, unitOfLength );
+    const double scaledTime = linearTimeElement - computeDromoScaledTimeToLinearTimeElementBias(
+            dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement );
+    return convertScaledTimeToPhysicalTime( scaledTime, centralBodyGravitationalParameter, unitOfLength );
 }
 
 double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
@@ -214,33 +215,33 @@ double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoE
     return - std::pow( semiMajorAxis, 3/2 ) * currentIndependentVariable;
 }
 
-double convertTimeToDromoConstantTimeElement(const double time,
-                                             const double currentIndependentVariable,
-                                             const Eigen::Vector8d& dromoElementsExceptTime,
-                                             const double centralBodyGravitationalParameter,
-                                             const double unitOfLength,
-                                             const bool usingEnergyElement)
+double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
+                                                     const double currentIndependentVariable,
+                                                     const Eigen::Vector8d& dromoElementsExceptTime,
+                                                     const double centralBodyGravitationalParameter,
+                                                     const double unitOfLength,
+                                                     const bool usingEnergyElement)
 {
-    double linearTimeElement = convertTimeToDromoLinearTimeElement(
-            time, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter, unitOfLength,
-            usingEnergyElement);
+    double linearTimeElement = convertPhysicalTimeToDromoLinearTimeElement(
+            physicalTime, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter, unitOfLength,
+            usingEnergyElement );
 
     return linearTimeElement + computeDromoLinearToConstantTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
 }
 
-double convertDromoConstantTimeElementToTime(const double constantTimeElement,
-                                             const double currentIndependentVariable,
-                                             const Eigen::Vector8d& dromoElementsExceptTime,
-                                             const double centralBodyGravitationalParameter,
-                                             const double unitOfLength,
-                                             const bool usingEnergyElement)
+double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeElement,
+                                                     const double currentIndependentVariable,
+                                                     const Eigen::Vector8d& dromoElementsExceptTime,
+                                                     const double centralBodyGravitationalParameter,
+                                                     const double unitOfLength,
+                                                     const bool usingEnergyElement)
 {
     const double linearTimeElement = constantTimeElement - computeDromoLinearToConstantTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
-    return convertDromoLinearTimeElementToTime(
+    return convertDromoLinearTimeElementToPhysicalTime(
             linearTimeElement, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter,
-            unitOfLength, usingEnergyElement);
+            unitOfLength, usingEnergyElement );
 }
 
 Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesianElements,
@@ -341,22 +342,28 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
         dromoElements( dromoElement3Index ) = dromoElement3;
     }
 
-    if ( timeType == propagators::physical_time)
+    if ( timeType == propagators::scaled_physical_time )
     {
-        dromoElements( dromoTimeIndex ) = convertTimeToDromoTime( timeFromPropagationStart, centralBodyGravitationalParameter,
-                                                                  unitOfLength );
+        dromoElements( dromoTimeIndex ) = convertPhysicalTimeToScaledTime( timeFromPropagationStart,
+                                                                           centralBodyGravitationalParameter,
+                                                                           unitOfLength );
     }
     else if ( timeType == propagators::linear_time_element )
     {
-        dromoElements( dromoTimeIndex ) = convertTimeToDromoLinearTimeElement(
+        dromoElements( dromoTimeIndex ) = convertPhysicalTimeToDromoLinearTimeElement(
                 timeFromPropagationStart, currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
-                unitOfLength, useEnergyElement);
+                unitOfLength, useEnergyElement );
     }
     else if ( timeType == propagators::constant_time_element )
     {
-        dromoElements( dromoTimeIndex ) = convertTimeToDromoConstantTimeElement(
+        dromoElements( dromoTimeIndex ) = convertPhysicalTimeToDromoConstantTimeElement(
                 timeFromPropagationStart, currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
-                unitOfLength, useEnergyElement);
+                unitOfLength, useEnergyElement );
+    }
+    else
+    {
+        throw std::runtime_error( "Error when setting converting Cartesian to Dromo(P) elements, specified time type (" +
+                std::to_string( timeType ) + ") is not valid." );
     }
 
     return dromoElements;
@@ -406,6 +413,41 @@ Eigen::Vector6d convertDromoToCartesianElements(const Eigen::Vector8d dromoEleme
             0).finished() * unitOfLength / computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength );
 
     return cartesianElements;
+}
+
+double convertDromoTimeToPhysicalTime(const Eigen::Vector8d dromoElements,
+                                      const double centralBodyGravitationalParameter,
+                                      const double currentIndependentVariable,
+                                      const double unitOfLength,
+                                      const bool usingEnergyElement,
+                                      const propagators::TimeElementType timeType)
+{
+    double timeFromPropagationStart;
+
+    if ( timeType == propagators::scaled_physical_time )
+    {
+        timeFromPropagationStart = convertScaledTimeToPhysicalTime(
+                dromoElements( dromoTimeIndex ), centralBodyGravitationalParameter, unitOfLength );
+    }
+    else if ( timeType == propagators::linear_time_element )
+    {
+        timeFromPropagationStart = convertDromoLinearTimeElementToPhysicalTime(
+                dromoElements( dromoTimeIndex ), currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
+                unitOfLength, usingEnergyElement);
+    }
+    else if ( timeType == propagators::constant_time_element )
+    {
+        timeFromPropagationStart = convertDromoConstantTimeElementToPhysicalTime(
+                dromoElements( dromoTimeIndex ), currentIndependentVariable, dromoElements, centralBodyGravitationalParameter,
+                unitOfLength, usingEnergyElement);
+    }
+    else
+    {
+        throw std::runtime_error( "Error when setting converting Dromo time to physical time, specified time type (" +
+                std::to_string( timeType ) + ") is not valid." );
+    }
+
+    return timeFromPropagationStart;
 }
 
 } // namespace orbital_element_conversions

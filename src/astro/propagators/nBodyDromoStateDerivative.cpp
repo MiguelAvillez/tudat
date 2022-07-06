@@ -23,12 +23,12 @@ namespace propagators
 {
 
 
-template class NBodyDromoStateDerivative< double, double >;
+template class NBodyDromoPStateDerivative< double, double >;
 
 #if( TUDAT_BUILD_WITH_EXTENDED_PRECISION_PROPAGATION_TOOLS )
-template class NBodyDromoStateDerivative< long double, double >;
-template class NBodyDromoStateDerivative< double, Time >;
-template class NBodyDromoStateDerivative< long double, Time >;
+template class NBodyDromoPStateDerivative< long double, double >;
+template class NBodyDromoPStateDerivative< double, Time >;
+template class NBodyDromoPStateDerivative< long double, Time >;
 #endif
 
 

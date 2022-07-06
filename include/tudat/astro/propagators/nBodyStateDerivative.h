@@ -42,7 +42,8 @@ enum TranslationalPropagatorType
     unified_state_model_quaternions = 4,
     unified_state_model_modified_rodrigues_parameters = 5,
     unified_state_model_exponential_map = 6,
-    stabilized_cowell = 7
+    stabilized_cowell = 7,
+    dromo_p = 8
 };
 
 // Enum listing the time types that can be integrated by regularized propagators

@@ -118,7 +118,7 @@ public:
             const basic_astrodynamics::AccelerationMap& accelerationModelsPerBody,
             const std::shared_ptr< CentralBodyData< StateScalarType, TimeType > > centralBodyData,
             const std::vector< std::string >& bodiesToIntegrate,
-            const RegularizedPropagatorTimeType timeType,
+            const TimeElementType timeType,
             const std::vector< Eigen::Matrix< StateScalarType, 6, 1 > >& initialKeplerElements ):
         NBodyStateDerivative< StateScalarType, TimeType >(
                 accelerationModelsPerBody, centralBodyData, stabilized_cowell, bodiesToIntegrate ),
@@ -335,7 +335,7 @@ private:
     std::function< double( ) > centralBodyGravitationalParameterFunction_;
 
     //! Type of time that is to be integrated
-    RegularizedPropagatorTimeType timeType_;
+    TimeElementType timeType_;
 
     //! Multiplying constant used in the Sundman transformation
     double sundmanConstant_;
