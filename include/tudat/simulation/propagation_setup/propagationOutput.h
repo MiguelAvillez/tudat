@@ -1189,36 +1189,6 @@ std::pair< std::function< Eigen::VectorXd( ) >, int > getVectorDependentVariable
         }
         break;
     }
-    case custom_dependent_variable_with_input_relative_position:
-    {
-        std::shared_ptr< CustomDependentVariableWithInputRelPosSaveSettings > customVariableSettings =
-                std::dynamic_pointer_cast< CustomDependentVariableWithInputRelPosSaveSettings >( dependentVariableSettings );
-
-        if( customVariableSettings == nullptr )
-        {
-            std::string errorMessage= "Error, inconsistent inout when creating dependent variable function of type custom_dependent_variable_with_input_relative_position";
-            throw std::runtime_error( errorMessage );
-        }
-
-        std::function< Eigen::Vector3d( ) > positionFunctionOfRelativeBody =
-                    std::bind( &simulation_setup::Body::getPosition, bodies.at( bodyWithProperty ) );
-        std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody =
-                std::bind( &simulation_setup::Body::getPosition, bodies.at( secondaryBody ) );
-
-        variableFunction = [=]( )
-        {
-            Eigen::VectorXd customVariables = customVariableSettings->customDependentVariableFunction_(
-                    positionFunctionOfRelativeBody() - positionFunctionOfCentralBody() );
-            if( customVariables.rows( ) != customVariableSettings->dependentVariableSize_ )
-            {
-                throw std::runtime_error( "Error when retrieving custom dependent variable, actual size is different from pre-defined size" );
-            }
-            return customVariables;
-        };
-        parameterSize = customVariableSettings->dependentVariableSize_;
-
-        break;
-    }
     default:
         std::string errorMessage =
                 "Error, did not recognize vector dependent variable type when making variable function: " +
@@ -1880,10 +1850,32 @@ std::function< double( ) > getDoubleDependentVariableFunction(
             std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody =
                     std::bind( &simulation_setup::Body::getPosition, bodies.at( secondaryBody ) );
 
+            // Retrieve orientation function depending on type of gravity field
+            std::function< Eigen::Quaterniond( ) > orientationFunctionOfCentralBody;
+
+            // If gravity field is spherical harmonic or polyhedron
+            if (std::dynamic_pointer_cast<gravitation::SphericalHarmonicsGravityField>(
+                    bodies.at( dependentVariableSettings->secondaryBody_ )->getGravityFieldModel( )) != nullptr ||
+                std::dynamic_pointer_cast<gravitation::PolyhedronGravityField>(
+                    bodies.at( dependentVariableSettings->secondaryBody_ )->getGravityFieldModel( )) != nullptr )
+            {
+                orientationFunctionOfCentralBody = std::bind( &simulation_setup::Body::getCurrentRotationToLocalFrame, bodies.at( secondaryBody ) );
+            }
+            // If gravity field is point mass
+            else
+            {
+                orientationFunctionOfCentralBody = [=]( ){ return Eigen::Quaterniond( Eigen::Matrix3d::Identity( ) ); };
+            }
+
+            // Retrieve function to get body fixed position of body
+            std::function< Eigen::Vector3d() > bodyFixedPositionOfBodyWithProperty =
+                    std::bind( &reference_frames::getBodyFixedCartesianPosition, positionFunctionOfCentralBody,
+                               positionFunctionOfRelativeBody, orientationFunctionOfCentralBody );
+
             variableFunction = [=]( )
             {
                 double customVariables = customVariableSettings->customDependentVariableFunction_(
-                        positionFunctionOfRelativeBody() - positionFunctionOfCentralBody() )(0);
+                        bodyFixedPositionOfBodyWithProperty() )(0);
                 return customVariables;
             };
 
