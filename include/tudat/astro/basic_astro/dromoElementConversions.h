@@ -53,7 +53,7 @@ double computeDromoUnitOfLength ( const Eigen::Vector3d& initialCartesianPositio
 double computeDromoUnitOfTime (const double centralBodyGravitationalParameter,
                                const double unitOfLength)
 {
-    return std::sqrt( centralBodyGravitationalParameter / std::pow(unitOfLength, 3) );
+    return 1 / std::sqrt( centralBodyGravitationalParameter / std::pow(unitOfLength, 3) );
 }
 
 //! Computes the MPhi matrix used in conversions for the Dromo propagator.
@@ -211,8 +211,7 @@ double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoE
     computeEnergyAndDromoElement3(dromoElementsExceptTime, usingEnergyElement, energy, dromoElement3);
 
     double semiMajorAxis = -1 / ( 2 * energy );
-
-    return - std::pow( semiMajorAxis, 3/2 ) * currentIndependentVariable;
+    return - std::pow( semiMajorAxis, 3.0/2.0 ) * currentIndependentVariable;
 }
 
 double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
@@ -244,6 +243,7 @@ double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeEl
             unitOfLength, usingEnergyElement );
 }
 
+// Explian behavior for TUDAT_NANs
 Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesianElements,
                                                 const double centralBodyGravitationalParameter,
                                                 const double unitOfLength,
@@ -268,6 +268,12 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
         }
         currentIndependentVariable = initialIndependentVariable;
     }
+    else if ( currentIndependentVariable < initialIndependentVariable )
+    {
+        throw std::runtime_error( "Error when setting converting Cartesian to Dromo(P) elements, initial independent variable (" +
+                std::to_string( initialIndependentVariable ) + ") is larger than current independent variable (" +
+                std::to_string( currentIndependentVariable ) + ")." );
+    }
 
     // Compute dimensionless cartesian position and velocity
     double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
@@ -288,40 +294,40 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     double dromoElement3 = 1 / s;
 
     Eigen::Matrix3d QRI;
-    QRI << cartesianPosition.transpose() / cartesianPositionNorm,
-        angularMomentum.cross( cartesianPosition ).transpose() / angularMomentumNorm / cartesianPositionNorm,
-        angularMomentum.transpose() / angularMomentumNorm;
+    QRI << cartesianPosition / cartesianPositionNorm,
+        angularMomentum.cross( cartesianPosition ) / angularMomentumNorm / cartesianPositionNorm,
+        angularMomentum / angularMomentumNorm;
     Eigen::Matrix3d Q0 = QRI * computeDromoMPhiMatrix( initialIndependentVariable, currentIndependentVariable ).transpose();
 
     // Compute dromo elements
     dromoElements( dromoElement1Index ) = ( s - dromoElement3 ) * std::cos( currentIndependentVariable ) +
             radialVelocityNorm * std::sin( currentIndependentVariable );
     dromoElements( dromoElement2Index ) = ( s - dromoElement3 ) * std::sin( currentIndependentVariable ) -
-            radialVelocityNorm * std::sin( currentIndependentVariable );
+            radialVelocityNorm * std::cos( currentIndependentVariable );
 
-    dromoElements( dromoElement7Index ) = -0.5 * std::sqrt( 1 + Q0(1,1) + Q0(2,2) + Q0(3,3) );
+    dromoElements( dromoElement7Index ) = -0.5 * std::sqrt( 1 + Q0(0,0) + Q0(1,1) + Q0(2,2) );
 
     const double tolerance = 1e-10;
     if ( std::abs( dromoElements( dromoElement7Index ) ) > tolerance )
     {
-        dromoElements( dromoElement4Index ) = ( Q0(3,2) - Q0(2,3) ) / ( 4 * dromoElements( dromoElement7Index ) );
-        dromoElements( dromoElement5Index ) = ( Q0(1,3) - Q0(3,1) ) / ( 4 * dromoElements( dromoElement7Index ) );
-        dromoElements( dromoElement6Index ) = ( Q0(2,1) - Q0(1,2) ) / ( 4 * dromoElements( dromoElement7Index ) );
+        dromoElements( dromoElement4Index ) = ( Q0(2,1) - Q0(1,2) ) / ( 4 * dromoElements( dromoElement7Index ) );
+        dromoElements( dromoElement5Index ) = ( Q0(0,2) - Q0(2,0) ) / ( 4 * dromoElements( dromoElement7Index ) );
+        dromoElements( dromoElement6Index ) = ( Q0(1,0) - Q0(0,1) ) / ( 4 * dromoElements( dromoElement7Index ) );
     }
     else
     {
-        dromoElements( dromoElement6Index ) = std::sqrt( ( Q0(3,3) + 1 ) / 2 );
+        dromoElements( dromoElement6Index ) = std::sqrt( ( Q0(2,2) + 1 ) / 2 );
         if ( std::abs( dromoElements( dromoElement6Index ) ) > tolerance )
         {
-            dromoElements( dromoElement4Index ) = Q0(1,3) / ( 2 * dromoElements( dromoElement6Index ) );
-            dromoElements( dromoElement5Index ) = Q0(2,3) / ( 2 * dromoElements( dromoElement6Index ) );
+            dromoElements( dromoElement4Index ) = Q0(0,2) / ( 2 * dromoElements( dromoElement6Index ) );
+            dromoElements( dromoElement5Index ) = Q0(1,2) / ( 2 * dromoElements( dromoElement6Index ) );
         }
         else
         {
-            dromoElements( dromoElement4Index ) = std::sqrt( ( 1 - Q0(2,2) ) / 2 );
+            dromoElements( dromoElement4Index ) = std::sqrt( ( 1 - Q0(1,1) ) / 2 );
             if ( std::abs( dromoElements( dromoElement4Index ) ) > tolerance )
             {
-                dromoElements( dromoElement5Index ) = Q0(1,2) / ( 2 * dromoElements( dromoElement4Index ) );
+                dromoElements( dromoElement5Index ) = Q0(0,1) / ( 2 * dromoElements( dromoElement4Index ) );
             }
             else
             {
@@ -342,6 +348,7 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
         dromoElements( dromoElement3Index ) = dromoElement3;
     }
 
+    // Compute the time element
     if ( timeType == propagators::scaled_physical_time )
     {
         dromoElements( dromoTimeIndex ) = convertPhysicalTimeToScaledTime( timeFromPropagationStart,

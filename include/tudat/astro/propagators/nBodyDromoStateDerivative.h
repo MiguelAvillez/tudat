@@ -20,6 +20,7 @@
 #include "tudat/astro/propagators/nBodyStateDerivative.h"
 #include "tudat/astro/basic_astro/stateRepresentationConversions.h"
 #include "tudat/astro/basic_astro/dromoElementConversions.h"
+#include "tudat/astro/basic_astro/orbitalElementConversions.h"
 
 namespace tudat
 {
@@ -108,12 +109,12 @@ Eigen::Vector8d computeStateDerivativeForDromoP(
 
         if ( timeType == linear_time_element )
         {
-            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3/2 ) *
+            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3.0/2.0 ) *
                     ( 1 + energyDerivative * ( termT1 + k1 ) + termT2 );
         }
         else // Constant time element
         {
-            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3/2 ) *
+            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3.0/2.0 ) *
                     ( energyDerivative * ( termT1 - 3 * semiMajorAxis * currentIndependentVariable + k1 ) ) + termT2;
         }
     }
@@ -131,112 +132,115 @@ template< typename StateScalarType = double, typename TimeType = double >
 class NBodyDromoPStateDerivative: public NBodyStateDerivative< StateScalarType, TimeType > {
 public:
 
-    NBodyDromoPStateDerivative (
-            const basic_astrodynamics::AccelerationMap& accelerationModelsPerBody,
-            const std::shared_ptr< CentralBodyData< StateScalarType, TimeType > > centralBodyData,
-            const std::vector< std::string >& bodiesToIntegrate,
-            const TimeElementType timeType,
-            const std::vector< Eigen::Matrix< StateScalarType, 6, 1 > >& initialCartesianElements,
-            const double initialPhysicalTime,
-            const bool useEnergyElement) :
-            NBodyStateDerivative< StateScalarType, TimeType >(
-                    accelerationModelsPerBody, centralBodyData, dromo_p, bodiesToIntegrate ),
-            timeType_( timeType ),
-            initialPhysicalTime_( initialPhysicalTime ),
-            useEnergyElement_( useEnergyElement ) {
-        // Check if specified timeType is valid
-        if ( not( timeType_ == scaled_physical_time or timeType_ == linear_time_element or
-                  timeType_ == constant_time_element ) ) {
-            throw std::runtime_error( "Error when setting N Body Dromo(P) propagator, specified time type (" +
-                                      std::to_string( timeType_ ) + ") is not implemented." );
-        }
-
-        // Check if a single body is to be integrated
-        if ( bodiesToIntegrate.size( ) != 1 ) {
-            throw std::runtime_error(
-                    "Error when setting N Body Dromo(P) propagator, only possible to integrate a single body ("
-                    + std::to_string( bodiesToIntegrate.size( ) ) + " bodies specified)." );
-        }
-
-        // Remove central gravitational acceleration from list of accelerations that is to be evaluated
-        centralBodyGravitationalParameterFunction_ = removeCentralGravityAccelerations(
-                centralBodyData->getCentralBodies( ), this->bodiesToBeIntegratedNumerically_,
-                this->accelerationModelsPerBody_, this->removedCentralAccelerations_ ).at( 0 );
-        this->createAccelerationModelList( );
-
-        // Select unit of length
-        unitOfLength_ = orbital_element_conversions::computeDromoUnitOfLength(
-                initialCartesianElements.block( 0, 0, 3, 1 ) );
-
-        // Select initial independent variable
-        Eigen::Vector6d keplerElements = convertCartesianToKeplerianElements( initialCartesianElements, centralBodyGravitationalParameterFunction_() );
-        initialIndependentVariable_ = keplerElements( orbital_element_conversions::trueAnomalyIndex );
-    }
-
-    void convertToOutputSolution (
-            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& internalSolution,
-            const TimeType& currentIndependentVariable,
-            Eigen::Block< Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > > currentCartesianLocalSolution)
-    {
-        currentCartesianLocalSolution.block( 0, 0, 6, 1 ) = orbital_element_conversions::convertDromoToCartesianElements(
-                internalSolution, centralBodyGravitationalParameterFunction_( ), initialIndependentVariable_,
-                currentIndependentVariable, unitOfLength_, fixedPerturbingPotential_, useEnergyElement_ );
-    }
-
-    Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic > convertFromOutputSolution (
-            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& cartesianSolution,
-            const TimeType& physicalTime)
-    {
-        Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > currentState = orbital_element_conversions::convertCartesianToDromoElements(
-                cartesianSolution.block( 0, 0, 6, 1 ), centralBodyGravitationalParameterFunction_(), unitOfLength_,
-                fixedPerturbingPotential_, physicalTime - initialPhysicalTime_ , useEnergyElement_, timeType_);
-    }
-
-    //! Function to return the size of the state handled by the object.
-    /*!
-     * Function to return the size of the state handled by the object.
-     * \return Size of the state under consideration (8 times the number if integrated bodies, which is 1).
-     */
-    int getPropagatedStateSize( )
-    {
-        return 8 * this->bodiesToBeIntegratedNumerically_.size( );
-    }
-
-    //! Function to return the physical time.
-    //! \param independentVariable Independent variable.
-    //! \return Physical time.
-    virtual TimeType getPhysicalTime(
-            const TimeType& independentVariable,
-            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >& stateOfSystemToBeIntegrated )
-    {
-        double timeFromPropagationStart = orbital_element_conversions::convertDromoTimeToPhysicalTime(
-                stateOfSystemToBeIntegrated, centralBodyGravitationalParameterFunction_(), independentVariable,
-                unitOfLength_, useEnergyElement_, timeType_);
-
-        return timeFromPropagationStart + initialPhysicalTime_;
-    }
-
-    //! Function returns whether the time is part of the state (i.e. whether it is a dependent variable).
-    //! \return Boolean informing whether state derivative includes time.
-    bool timeIsADependentVariable( )
-    {
-        return true;
-    }
-
-   // Function to compute the initial independent variable.
-   /*
-    * Function to compute the initial independent variable to use in the propagation. For stabilized cowell, the initial
-    * independent variable is a fictitious angle, thus its initial value is considered to be 0.
-    * \param initialOutputSolution Initial state in 'conventional form'
-    * \param initialTime Initial propagation time, at which the state is valid.
-    * \return Independent variable
-    */
-    virtual TimeType computeInitialIndependentVariable (
-            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& initialOutputSolution,
-            const TimeType& initialTime)
-    {
-        return initialIndependentVariable_;
-    }
+//    NBodyDromoPStateDerivative (
+//            const basic_astrodynamics::AccelerationMap& accelerationModelsPerBody,
+//            const std::shared_ptr< CentralBodyData< StateScalarType, TimeType > > centralBodyData,
+//            const std::vector< std::string >& bodiesToIntegrate,
+//            const TimeElementType timeType,
+//            const std::vector< Eigen::Matrix< StateScalarType, 6, 1 > >& initialCartesianElements,
+//            const double initialPhysicalTime,
+//            const bool useEnergyElement) :
+//            NBodyStateDerivative< StateScalarType, TimeType >(
+//                    accelerationModelsPerBody, centralBodyData, dromo_p, bodiesToIntegrate ),
+//            timeType_( timeType ),
+//            initialPhysicalTime_( initialPhysicalTime ),
+//            useEnergyElement_( useEnergyElement ) {
+//        // Check if specified timeType is valid
+//        if ( not( timeType_ == scaled_physical_time or timeType_ == linear_time_element or
+//                  timeType_ == constant_time_element ) ) {
+//            throw std::runtime_error( "Error when setting N Body Dromo(P) propagator, specified time type (" +
+//                                      std::to_string( timeType_ ) + ") is not implemented." );
+//        }
+//
+//        // Check if a single body is to be integrated
+//        if ( bodiesToIntegrate.size( ) != 1 ) {
+//            throw std::runtime_error(
+//                    "Error when setting N Body Dromo(P) propagator, only possible to integrate a single body ("
+//                    + std::to_string( bodiesToIntegrate.size( ) ) + " bodies specified)." );
+//        }
+//
+//        // Remove central gravitational acceleration from list of accelerations that is to be evaluated
+//        centralBodyGravitationalParameterFunction_ = removeCentralGravityAccelerations(
+//                centralBodyData->getCentralBodies( ), this->bodiesToBeIntegratedNumerically_,
+//                this->accelerationModelsPerBody_, this->removedCentralAccelerations_ ).at( 0 );
+//        this->createAccelerationModelList( );
+//
+//        // Select unit of length
+//        unitOfLength_ = orbital_element_conversions::computeDromoUnitOfLength(
+//                initialCartesianElements.at( 0 ) );
+//
+//        // Select initial independent variable
+//        Eigen::Vector6d keplerElements = orbital_element_conversions::convertCartesianToKeplerianElements(
+//                initialCartesianElements.at( 0 ), centralBodyGravitationalParameterFunction_() );
+//        initialIndependentVariable_ = keplerElements( orbital_element_conversions::trueAnomalyIndex );
+//    }
+//
+//    void convertToOutputSolution (
+//            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& internalSolution,
+//            const TimeType& currentIndependentVariable,
+//            Eigen::Block< Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > > currentCartesianLocalSolution)
+//    {
+//        currentCartesianLocalSolution.block( 0, 0, 6, 1 ) = orbital_element_conversions::convertDromoToCartesianElements(
+//                internalSolution, centralBodyGravitationalParameterFunction_( ), initialIndependentVariable_,
+//                currentIndependentVariable, unitOfLength_, fixedPerturbingPotential_, useEnergyElement_ );
+//    }
+//
+//    Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic > convertFromOutputSolution (
+//            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& cartesianSolution,
+//            const TimeType& physicalTime)
+//    {
+//        Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 > currentState = orbital_element_conversions::convertCartesianToDromoElements(
+//                cartesianSolution.block( 0, 0, 6, 1 ), centralBodyGravitationalParameterFunction_(), unitOfLength_,
+//                fixedPerturbingPotential_, physicalTime - initialPhysicalTime_ , useEnergyElement_, timeType_);
+//
+//        return currentState;
+//    }
+//
+//    //! Function to return the size of the state handled by the object.
+//    /*!
+//     * Function to return the size of the state handled by the object.
+//     * \return Size of the state under consideration (8 times the number if integrated bodies, which is 1).
+//     */
+//    int getPropagatedStateSize( )
+//    {
+//        return 8 * this->bodiesToBeIntegratedNumerically_.size( );
+//    }
+//
+//    //! Function to return the physical time.
+//    //! \param independentVariable Independent variable.
+//    //! \return Physical time.
+//    virtual TimeType getPhysicalTime(
+//            const TimeType& independentVariable,
+//            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, 1 >& stateOfSystemToBeIntegrated )
+//    {
+//        double timeFromPropagationStart = orbital_element_conversions::convertDromoTimeToPhysicalTime(
+//                stateOfSystemToBeIntegrated, centralBodyGravitationalParameterFunction_(), independentVariable,
+//                unitOfLength_, useEnergyElement_, timeType_);
+//
+//        return timeFromPropagationStart + initialPhysicalTime_;
+//    }
+//
+//    //! Function returns whether the time is part of the state (i.e. whether it is a dependent variable).
+//    //! \return Boolean informing whether state derivative includes time.
+//    bool timeIsADependentVariable( )
+//    {
+//        return true;
+//    }
+//
+//   // Function to compute the initial independent variable.
+//   /*
+//    * Function to compute the initial independent variable to use in the propagation. For stabilized cowell, the initial
+//    * independent variable is a fictitious angle, thus its initial value is considered to be 0.
+//    * \param initialOutputSolution Initial state in 'conventional form'
+//    * \param initialTime Initial propagation time, at which the state is valid.
+//    * \return Independent variable
+//    */
+//    virtual TimeType computeInitialIndependentVariable (
+//            const Eigen::Matrix< StateScalarType, Eigen::Dynamic, Eigen::Dynamic >& initialOutputSolution,
+//            const TimeType& initialTime)
+//    {
+//        return initialIndependentVariable_;
+//    }
 
 private:
 

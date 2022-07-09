@@ -49,10 +49,10 @@ enum TranslationalPropagatorType
 // Enum listing the time types that can be integrated by regularized propagators
 enum TimeElementType
 {
-    physical_time,
-    scaled_physical_time,
-    constant_time_element,
-    linear_time_element
+    physical_time = 0,
+    scaled_physical_time = 1,
+    constant_time_element = 2,
+    linear_time_element = 3
 };
 
 // Function to remove the central gravity acceleration from an AccelerationMap
