@@ -12,6 +12,9 @@
  *          Celestial Mechanics and Dynamics Astronomy, 116, pp. 3-78
  *      Regularised methods for high-efficiency propagation, Geul et al. (2015), AAS/AIAA Astrodynamics Specialist
  *          Conference, Vail, CO, United States. Code archive.
+ *      TIME ELEMENTS FOR ENHANCED PERFORMANCE OF THE DROMO ORBIT PROPAGATOR, Bau and Bombardelli (2014),
+ *          The Astronomical Journal, 148:43
+ *
  */
 
 #ifndef TUDATBUNDLE_DROMOELEMENTCONVERSIONS_H
@@ -31,23 +34,38 @@ namespace orbital_element_conversions
 
 //! Computes the unit of length used in the Dromo propagator.
 /*!
- * Computes the unit of length used to make variables dimensionless in the Dromo propagator. The unit of length is
- * selected to be the inital radial position. Bau (2013), section 2.
+ * Computes the unit of length used to make variables dimensionless in the Dromo propagator, starting from the cartesian
+ * elements. The unit of length is selected to be the inital radial position. Bau (2013), section 2.
  *
- * @param initialCartesianPosition Initial cartesian position.
+ * @param initialCartesianElements Initial cartesian state.
  * @return Unit of length.
  */
-double computeDromoUnitOfLength ( const Eigen::Vector3d& initialCartesianPosition )
+double computeDromoUnitOfLengthFromCartesianElements (const Eigen::Vector6d& initialCartesianElements )
 {
-    return initialCartesianPosition.norm();
+    return initialCartesianElements.segment( 0, 3 ).norm();
 }
 
-//! Computes the unit of time used in the Dromo propagator.
+//! Computes the unit of length used in the Dromo propagator.
 /*!
- * Computes the unit of time used to make variables dimensionless in the Dromo propagator. The unit of time is
+ * Computes the unit of length used to make variables dimensionless in the Dromo propagator, starting from the keplerian
+ * elements. The unit of length is selected to be the inital radial position. Bau (2013), section 2.
+ *
+ * @param initialKeplerianElements Initial cartesian state.
+ * @return Unit of length.
+ */
+double computeDromoUnitOfLengthFromKeplerianElements (const Eigen::Vector6d& initialKeplerianElements )
+{
+    return initialKeplerianElements( semiMajorAxisIndex ) *
+        ( 1 - std::pow( initialKeplerianElements( eccentricityIndex ), 2 ) ) /
+        ( 1 + initialKeplerianElements( eccentricityIndex ) * std::cos( initialKeplerianElements( trueAnomalyIndex ) ) );
+}
+
+//! Computes the unit of time used in the Dromo(P) propagator.
+/*!
+ * Computes the unit of time used to make variables dimensionless in the Dromo(P) propagator. The unit of time is
  * selected to be angular rate of a circular orbit with the unit of length as radius. Bau (2013), section 2.
  *
- * @param initialCartesianPosition Initial cartesian position.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
  * @return Unit of time.
  */
 double computeDromoUnitOfTime (const double centralBodyGravitationalParameter,
@@ -56,12 +74,12 @@ double computeDromoUnitOfTime (const double centralBodyGravitationalParameter,
     return 1 / std::sqrt( centralBodyGravitationalParameter / std::pow(unitOfLength, 3) );
 }
 
-//! Computes the MPhi matrix used in conversions for the Dromo propagator.
+//! Computes the MPhi matrix used in conversions for the Dromo(P) propagator.
 /*!
- * Computes the MPhi matrix used when converting the Dromo elements to cartesian and vice-versa. Eq. 50 of Bau (2013).
+ * Computes the MPhi matrix used when converting the Dromo(P) elements to cartesian and vice-versa. Eq. 50 of Bau (2013).
  *
  * @param initialIndependentVariable Initial independent variable.
- * @param currentIndependentVariable Independent variable for which the matrix is to be computed.
+ * @param currentIndependentVariable Current value of the independent variable.
  * @return MPhi matrix
  */
 Eigen::Matrix3d computeDromoMPhiMatrix (const double initialIndependentVariable,
@@ -74,14 +92,14 @@ Eigen::Matrix3d computeDromoMPhiMatrix (const double initialIndependentVariable,
         0, 0, 1).finished();
 }
 
-//! Convert the time to the time used in Dromo.
+//! Convert the time to the dimensionless time used in Dromo(P).
 /*!
- * Convert the time to the time used in Dromo, i.e. makes the time dimensionless.
+ * Convert the time to the dimensionless time used in Dromo(P).
  *
- * @param physicalTime Dimensional time.
+ * @param physicalTime Dimensional physical time.
  * @param centralBodyGravitationalParameter Central body gravitational parameter.
- * @param unitOfLength Dromo unit of length.
- * @return Dromo time.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @return Dromo(P) dimensionless time.
  */
 double convertPhysicalTimeToScaledTime(const double physicalTime,
                                        const double centralBodyGravitationalParameter,
@@ -90,6 +108,15 @@ double convertPhysicalTimeToScaledTime(const double physicalTime,
     return physicalTime / computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength);
 }
 
+//! Convert the dimensionless time used in Dromo(P) to the physical time.
+/*!
+ * Convert the dimensionless time used in Dromo(P) to the physical time.
+ *
+ * @param scaledTime Dromo(P) dimensionless time.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @return Dimensional physical time.
+ */
 double convertScaledTimeToPhysicalTime(const double scaledTime,
                                        const double centralBodyGravitationalParameter,
                                        const double unitOfLength)
@@ -97,6 +124,16 @@ double convertScaledTimeToPhysicalTime(const double scaledTime,
     return scaledTime * computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength);
 }
 
+//! Computes the energy and zeta3 elements for Dromo(P).
+/*!
+ * Computes the energy and zeta3 elements for Dromo(P). If the dromo elements use the energy, then zeta3 is computed;
+ * if the dromo elements use zeta3, then the energy is computed. Both are returned by reference
+ *
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @param energy Energy element.
+ * @param zeta3 Zeta3 element.
+ */
 void computeEnergyAndDromoZeta3(const Eigen::Vector8d& dromoElementsExceptTime,
                                 const bool usingEnergyElement,
                                 double& energy,
@@ -117,13 +154,13 @@ void computeEnergyAndDromoZeta3(const Eigen::Vector8d& dromoElementsExceptTime,
     }
 }
 
-//! Compute the Dromo term s.
+//! Compute the Dromo(P) term s.
 /*!
- * Compute the Dromo term s, Eq. 40 of Bau (2013).
+ * Compute the Dromo(P) term s, Eq. 40 of Bau (2013).
  *
- * @param dromoElements Dromo state
+ * @param dromoElements Dromo(P) state.
  * @param currentIndependentVariable Current independent variable.
- * @param zeta3 Value of the zeta3 Dromo element.
+ * @param zeta3 Value of the zeta3 Dromo(P) element.
  * @return s
  */
 double computeDromoS(const Eigen::Vector8d& dromoElements,
@@ -138,7 +175,7 @@ double computeDromoS(const Eigen::Vector8d& dromoElements,
 /*!
  * Compute the radial velocity, Eq. 41 of Bau (2013).
  *
- * @param dromoElements Dromo state
+ * @param dromoElements Dromo(P) state.
  * @param currentIndependentVariable Current independent variable.
  * @return Radial velocity
  */
@@ -153,7 +190,7 @@ double computeDromoRadialVelocity (const Eigen::Vector8d& dromoElements,
 /*!
  * Compute the transverse velocity., Eq. 42 of Bau (2013).
  *
- * @param s Dromo s term.
+ * @param s Dromo(P) s term.
  * @param perturbingPotential Potential of perturbing accelerations.
  * @return Transverse velocity
  */
@@ -163,6 +200,15 @@ double computeDromoTransverseVelocity (const double s,
     return std::sqrt( std::pow( s, 2 ) - 2 * perturbingPotential );
 }
 
+//! Computes the difference between the linear time element and dimensionless time.
+/*!
+ * Computes the difference between the linear time element and dimensionless time, Eq. 6 of Geul (2016).
+ *
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Difference.
+ */
 double computeDromoScaledTimeToLinearTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
                                                      const double currentIndependentVariable,
                                                      const bool usingEnergyElement)
@@ -178,6 +224,18 @@ double computeDromoScaledTimeToLinearTimeElementBias(const Eigen::Vector8d& drom
                                                            std::atan2( radialVelocity, s + std::sqrt( -2 * energy) );
 }
 
+//! Converts the dimensional physical time to linear time element.
+/*!
+ * Converts the dimensional physical time to linear time element, Eq. 6 of Geul (2016).
+ *
+ * @param physicalTime Dimensional physical time.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Linear time elemnent.
+ */
 double convertPhysicalTimeToDromoLinearTimeElement(const double physicalTime,
                                                    const double currentIndependentVariable,
                                                    const Eigen::Vector8d& dromoElementsExceptTime,
@@ -190,6 +248,18 @@ double convertPhysicalTimeToDromoLinearTimeElement(const double physicalTime,
                                                            usingEnergyElement );
 }
 
+//! Converts linear time element to the dimensional physical time.
+/*!
+ * Converts linear time element to the dimensional physical time, Eq. 6 of Geul (2016).
+ *
+ * @param linearTimeElement Linear time elemnent.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Dimensional physical time.
+ */
 double convertDromoLinearTimeElementToPhysicalTime(const double linearTimeElement,
                                                    const double currentIndependentVariable,
                                                    const Eigen::Vector8d& dromoElementsExceptTime,
@@ -202,6 +272,15 @@ double convertDromoLinearTimeElementToPhysicalTime(const double linearTimeElemen
     return convertScaledTimeToPhysicalTime( scaledTime, centralBodyGravitationalParameter, unitOfLength );
 }
 
+//! Computes the difference between the constant time element and linear time element.
+/*!
+ * Computes the difference between the constant time element and linear time element, Eq. 7 of Geul (2016).
+ *
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Difference.
+ */
 double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
                                                    const double currentIndependentVariable,
                                                    const bool usingEnergyElement)
@@ -214,6 +293,18 @@ double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoE
     return - std::pow( semiMajorAxis, 3.0/2.0 ) * currentIndependentVariable;
 }
 
+//! Converts the dimensional physical time to constant time element.
+/*!
+ * Converts the dimensional physical time to linear time element, Eq. 7 of Geul (2016).
+ *
+ * @param physicalTime Dimensional physical time.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Constant time elemnent.
+ */
 double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
                                                      const double currentIndependentVariable,
                                                      const Eigen::Vector8d& dromoElementsExceptTime,
@@ -229,6 +320,18 @@ double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
 }
 
+//! Converts constant time element to the dimensional physical time.
+/*!
+ * Converts the constant time element to dimensional physical time, Eq. 7 of Geul (2016).
+ *
+ * @param constantTimeElement Linear time elemnent.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param centralBodyGravitationalParameter Central body gravitational parameter.
+ * @param unitOfLength Dromo(P) unit of length.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Dimensional physical time.
+ */
 double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeElement,
                                                      const double currentIndependentVariable,
                                                      const Eigen::Vector8d& dromoElementsExceptTime,
@@ -243,7 +346,38 @@ double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeEl
             unitOfLength, usingEnergyElement );
 }
 
-// Explian behavior for TUDAT_NANs
+//! Converts Cartesian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+/*!
+ * Converts Cartesian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+ * @param cartesianElements Converted state in Cartesian elements. The order of elements is fixed!
+ *         cartesianElements( 0 ) = x-position coordinate,                                      [m]
+ *         cartesianElements( 1 ) = y-position coordinate,                                      [m]
+ *         cartesianElements( 2 ) = z-position coordinate,                                      [m]
+ *         cartesianElements( 3 ) = x-velocity coordinate,                                    [m/s]
+ *         cartesianElements( 4 ) = y-velocity coordinate,                                    [m/s]
+ *         cartesianElements( 5 ) = z-velocity coordinate.                                    [m/s]
+ * @param centralBodyGravitationalParameter Gravitational parameter of central body.      [m^3/s^2]
+ * @param unitOfLength Unit of length [m] used to make variables dimensionless. Usually it is taken to be the the position
+ *          vector norm at the initial state.
+ * @param perturbingPotential Potential of perturbing accelerations [m^2/s^2].
+ * @param timeFromPropagationStart Time since the start of the propagation [s].
+ * @param useEnergyElement Flag indicating whether the dromo state should use energy (true) or zeta3 (false).
+ * @param timeType Enum indicating the type of time element which should be used.
+ * @param initialIndependentVariable Initial value of the independent variable. Default is TUDAT_NAN, in which case
+ *          the initial independent variable is taken to be the true anomaly.
+ * @param currentIndependentVariable Current value of the independent variable. Default is TUDAT_NAN, in which case
+ *          the current independent variable is taken to be the same as the initial independent variable.
+ * @return dromoElements State in Dromo(P) elements.
+ *         The order of elements is fixed
+ *         dromoElements( 0 ) = Time element,                 [-]
+ *         dromoElements( 1 ) = Zeta1 element,                [-]
+ *         dromoElements( 2 ) = Zeta2 element,                [-]
+ *         dromoElements( 3 ) = Energy or zeta3 element,      [-]
+ *         dromoElements( 4 ) = Zeta4 element,                [-]
+ *         dromoElements( 5 ) = Zeta5 element,                [-]
+ *         dromoElements( 6 ) = Zeta6 element.                [-]
+ *         dromoElements( 7 ) = Zeta7 element.                [-]
+ */
 Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesianElements,
                                                 const double centralBodyGravitationalParameter,
                                                 const double unitOfLength,
@@ -256,6 +390,13 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
 {
     // Declaring eventual output vector.
     Eigen::Vector8d dromoElements;
+
+    // Check if provided unit of length is valid
+    if ( unitOfLength <= 0.0 )
+    {
+        throw std::runtime_error( "Error when converting Cartesian to Dromo(P) elements, unit of length (" +
+                std::to_string( unitOfLength ) + ") is <= zero." );
+    }
 
     // If current independent variable isn't defined set values to default ones
     if ( isnan(currentIndependentVariable) )
@@ -270,7 +411,7 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     }
     else if ( currentIndependentVariable < initialIndependentVariable )
     {
-        throw std::runtime_error( "Error when setting converting Cartesian to Dromo(P) elements, initial independent variable (" +
+        throw std::runtime_error( "Error when converting Cartesian to Dromo(P) elements, initial independent variable (" +
                 std::to_string( initialIndependentVariable ) + ") is larger than current independent variable (" +
                 std::to_string( currentIndependentVariable ) + ")." );
     }
@@ -288,6 +429,14 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
 
     double radialVelocityNorm = cartesianPosition.dot( cartesianVelocity ) / cartesianPositionNorm;
     double transverseVelocityNorm = angularMomentumNorm / cartesianPositionNorm;
+
+    if ( perturbingPotential > - std::pow( transverseVelocityNorm, 2 ) / 2 )
+    {
+        throw std::runtime_error(
+            "Value of perturbing potential (" + std::to_string( perturbingPotential ) + ") is too large (maximum value is " +
+            std::to_string( - std::pow( transverseVelocityNorm, 2 ) / 2 ) + "), which will lead to singularities. For "
+            "details see Section 6 of A New Set of Integrals of Motion to Propagate the Perturbed Two-Body Problem, Bau et al. (2013)." );
+    }
 
     // Auxiliary variables
     double s = std::sqrt( std::pow( transverseVelocityNorm, 2 ) + 2 * dimensionlessPerturbingPotential );
@@ -369,13 +518,45 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     }
     else
     {
-        throw std::runtime_error( "Error when setting converting Cartesian to Dromo(P) elements, specified time type (" +
+        throw std::runtime_error( "Error when converting Cartesian to Dromo(P) elements, specified time type (" +
                 std::to_string( timeType ) + ") is not valid." );
     }
 
     return dromoElements;
 }
 
+//! Converts Keplerian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+/*!
+ * Converts Keplerian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+ * \param keplerianElements Vector containing Keplerian elements. Order of elements is important!
+ *         keplerianElements( 0 ) = semi-major axis,                                            [m]
+ *         keplerianElements( 1 ) = eccentricity,                                               [-]
+ *         keplerianElements( 2 ) = inclination (in range [0,PI]),                            [rad]
+ *         keplerianElements( 3 ) = argument of periapsis,                                    [rad]
+ *         keplerianElements( 4 ) = longitude of ascending node,                              [rad]
+ *         keplerianElements( 5 ) = true anomaly.                                             [rad]
+ * @param centralBodyGravitationalParameter Gravitational parameter of central body.      [m^3/s^2]
+ * @param unitOfLength Unit of length [m] used to make variables dimensionless. Usually it is taken to be the the position
+ *          vector norm at the initial state.
+ * @param perturbingPotential Potential of perturbing accelerations [m^2/s^2].
+ * @param timeFromPropagationStart Time since the start of the propagation [s].
+ * @param useEnergyElement Flag indicating whether the dromo state should use energy (true) or zeta3 (false).
+ * @param timeType Enum indicating the type of time element which should be used.
+ * @param initialIndependentVariable Initial value of the independent variable. Default is TUDAT_NAN, in which case
+ *          the initial independent variable is taken to be the true anomaly.
+ * @param currentIndependentVariable Current value of the independent variable. Default is TUDAT_NAN, in which case
+ *          the current independent variable is taken to be the same as the initial independent variable.
+ * @return dromoElements State in Dromo(P) elements.
+ *         The order of elements is fixed
+ *         dromoElements( 0 ) = Time element,                 [-]
+ *         dromoElements( 1 ) = Zeta1 element,                [-]
+ *         dromoElements( 2 ) = Zeta2 element,                [-]
+ *         dromoElements( 3 ) = Energy or zeta3 element,      [-]
+ *         dromoElements( 4 ) = Zeta4 element,                [-]
+ *         dromoElements( 5 ) = Zeta5 element,                [-]
+ *         dromoElements( 6 ) = Zeta6 element.                [-]
+ *         dromoElements( 7 ) = Zeta7 element.                [-]
+ */
 Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerianElements,
                                                 const double centralBodyGravitationalParameter,
                                                 const double unitOfLength,
@@ -405,7 +586,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified eccentricity: " << keplerianElements( eccentricityIndex ) << std::endl;
 
         // Throw exception
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error(errorMessage.str( ) );
     }
 
     // If inclination is outside range [0,PI]
@@ -417,7 +598,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified inclination: " << keplerianElements( inclinationIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If argument of pericenter is outside range [0,2.0 * PI]
@@ -430,7 +611,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified inclination: " << keplerianElements( argumentOfPeriapsisIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If right ascension of ascending node is outside range [0,2.0 * PI]
@@ -444,7 +625,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If true anomaly is outside range [0,2.0 * PI]
@@ -457,7 +638,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified inclination: " << keplerianElements( trueAnomalyIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If inclination is zero and the right ascension of ascending node is non-zero
@@ -471,7 +652,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                         keplerianElements( longitudeOfAscendingNodeIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If eccentricity is zero and the argument of pericenter is non-zero
@@ -485,7 +666,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                         keplerianElements( argumentOfPeriapsisIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If semi-major axis is negative and the eccentricity is smaller or equal to one
@@ -498,7 +679,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified eccentricity: " << keplerianElements( eccentricityIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
 
     // If semi-major axis is positive and the eccentricity is larger than one
@@ -511,10 +692,16 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                      << "Specified eccentricity: " << keplerianElements( eccentricityIndex ) << " rad." << std::endl;
 
         // Throw exception.
-        throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        throw std::runtime_error( errorMessage.str( ) );
     }
     //Else, nothing wrong and continue
 
+    // Check if provided unit of length is valid
+    if ( unitOfLength <= 0.0 )
+    {
+        throw std::runtime_error( "Error when setting converting Keplerian to Dromo(P) elements, unit of length (" +
+                std::to_string( unitOfLength ) + ") is <= zero." );
+    }
 
     // If current independent variable isn't defined set values to default ones
     if ( isnan(currentIndependentVariable) )
@@ -527,7 +714,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     }
     else if ( currentIndependentVariable < initialIndependentVariable )
     {
-        throw std::runtime_error( "Error when setting converting Cartesian to Dromo(P) elements, initial independent variable (" +
+        throw std::runtime_error( "Error when converting Keplerian to Dromo(P) elements, initial independent variable (" +
                 std::to_string( initialIndependentVariable ) + ") is larger than current independent variable (" +
                 std::to_string( currentIndependentVariable ) + ")." );
     }
@@ -548,6 +735,17 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     // Compute dimensionless angular momentum norm
     double angularMomentumNorm = std::sqrt( sma * ( 1 - std::pow( ecc, 2) ) );
 
+    double dimensionlessCartesianPositionNorm =
+            convertKeplerianToCartesianElements(keplerianElements, centralBodyGravitationalParameter).segment(0, 3).norm() / unitOfLength;
+    double transverseVelocityNorm = angularMomentumNorm / dimensionlessCartesianPositionNorm;
+    if ( perturbingPotential > - std::pow( transverseVelocityNorm, 2 ) / 2 )
+    {
+        throw std::runtime_error(
+            "Value of perturbing potential (" + std::to_string( perturbingPotential ) + ") is too large (maximum value is " +
+            std::to_string( - std::pow( transverseVelocityNorm, 2 ) / 2 ) + "), which will lead to singularities. For "
+            "details see Section 6 of A New Set of Integrals of Motion to Propagate the Perturbed Two-Body Problem, Bau et al. (2013)." );
+    }
+
     // Compute dromo elements
     double eccCosTrAnom = ecc * std::cos( trAnom );
     double term0 = angularMomentumNorm * std::sqrt( std::pow( ( 1 + eccCosTrAnom ), 2 ) +
@@ -566,7 +764,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     {
         // Computing energy
         dromoElements( dromoPZeta3Index ) = ( std::pow( dromoElements( dromoPZeta1Index ), 2 ) +
-                std::pow( dromoElements( dromoPZeta2Index ), 2 ) + std::pow( zeta3, 2 ) ) / 2;
+                std::pow( dromoElements( dromoPZeta2Index ), 2 ) - std::pow( zeta3, 2 ) ) / 2;
     }
     else
     {
@@ -601,7 +799,7 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     }
     else
     {
-        throw std::runtime_error( "Error when setting converting Keplerian to Dromo(P) elements, specified time type (" +
+        throw std::runtime_error( "Error when converting Keplerian to Dromo(P) elements, specified time type (" +
                 std::to_string( timeType ) + ") is not valid." );
     }
 
@@ -682,7 +880,7 @@ double convertDromoTimeToPhysicalTime(const Eigen::Vector8d dromoElements,
     }
     else
     {
-        throw std::runtime_error( "Error when setting converting Dromo time to physical time, specified time type (" +
+        throw std::runtime_error( "Error when setting converting Dromo(P) time to physical time, specified time type (" +
                 std::to_string( timeType ) + ") is not valid." );
     }
 
