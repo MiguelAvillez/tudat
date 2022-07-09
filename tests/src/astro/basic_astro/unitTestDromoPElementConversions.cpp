@@ -93,30 +93,30 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
                 // (Results were calculated using Jacco Geul's code)
                 if ( timeType == propagators::scaled_physical_time )
                 {
-                    expectedDromoPElements( dromoTimeIndex ) = 0.0002304240862538;
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002304240862538;
                 }
                 else if ( timeType == propagators::linear_time_element )
                 {
-                    expectedDromoPElements( dromoTimeIndex ) = 0.0327866983245745;
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0327866983245745;
                 }
                 else // Constant time element
                 {
-                    expectedDromoPElements( dromoTimeIndex ) = -0.4015315308083531;
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.4015315308083531;
                 }
-                expectedDromoPElements( dromoElement1Index ) = -0.0825372218319105;
-                expectedDromoPElements( dromoElement2Index ) = -0.0659301474773062;
+                expectedDromoPElements( dromoPZeta1Index ) = -0.0825372218319105;
+                expectedDromoPElements( dromoPZeta2Index ) = -0.0659301474773062;
                 if ( useTimeElement == 0 )
                 {
-                    expectedDromoPElements( dromoElement3Index ) = 1.0533730849570428;
+                    expectedDromoPElements( dromoPZeta3Index ) = 1.0533730849570428;
                 }
                 else
                 {
-                    expectedDromoPElements( dromoEnergyIndex ) = -0.5492178393889040;
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.5492178393889040;
                 }
-                expectedDromoPElements( dromoElement4Index ) = -0.2228512303422792;
-                expectedDromoPElements( dromoElement5Index ) = 0.3590870706272545;
-                expectedDromoPElements( dromoElement6Index ) = -0.8675165654431490;
-                expectedDromoPElements( dromoElement7Index ) = -0.2623143410585717;
+                expectedDromoPElements( dromoPZeta4Index ) = -0.2228512303422792;
+                expectedDromoPElements( dromoPZeta5Index ) = 0.3590870706272545;
+                expectedDromoPElements( dromoPZeta6Index ) = -0.8675165654431490;
+                expectedDromoPElements( dromoPZeta7Index ) = -0.2623143410585717;
 
                 // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
                 cartesianElements = convertKeplerianToCartesianElements( keplerianElements,

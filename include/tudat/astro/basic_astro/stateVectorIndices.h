@@ -140,17 +140,17 @@ enum StabilizedCowellElementIndices
 };
 
 //! Dromo indices
-enum Dromo
+enum DromoPElementIndices
 {
-    dromoTimeIndex = 0,
-    dromoElement1Index = 1,
-    dromoElement2Index = 2,
-    dromoElement3Index = 3,
-    dromoEnergyIndex = 3,
-    dromoElement4Index = 4,
-    dromoElement5Index = 5,
-    dromoElement6Index = 6,
-    dromoElement7Index = 7,
+    dromoPTimeIndex = 0,
+    dromoPZeta1Index = 1,
+    dromoPZeta2Index = 2,
+    dromoPZeta3Index = 3,
+    dromoPEnergyIndex = 3,
+    dromoPZeta4Index = 4,
+    dromoPZeta5Index = 5,
+    dromoPZeta6Index = 6,
+    dromoPZeta7Index = 7,
 };
 
 } // namespace orbital_element_conversions

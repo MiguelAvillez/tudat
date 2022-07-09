@@ -44,7 +44,7 @@ Eigen::Vector8d computeStateDerivativeForDromoP(
 
     double energy;
     double zeta3;
-    orbital_element_conversions::computeEnergyAndDromoElement3( currentDromoState, usingEnergyElement, energy, zeta3 );
+    orbital_element_conversions::computeEnergyAndDromoZeta3( currentDromoState, usingEnergyElement, energy, zeta3 );
 
     double s = orbital_element_conversions::computeDromoS( currentDromoState, currentIndependentVariable, zeta3 );
     double radialVelocity = orbital_element_conversions::computeDromoRadialVelocity( currentDromoState, currentIndependentVariable );
@@ -58,49 +58,49 @@ Eigen::Vector8d computeStateDerivativeForDromoP(
 
     if ( usingEnergyElement )
     {
-        stateDerivative( orbital_element_conversions::dromoElement3Index ) = energyDerivative;
+        stateDerivative( orbital_element_conversions::dromoPZeta3Index ) = energyDerivative;
     }
     else
     {
-        stateDerivative( orbital_element_conversions::dromoElement3Index ) = zeta3Derivative;
+        stateDerivative( orbital_element_conversions::dromoPZeta3Index ) = zeta3Derivative;
     }
 
     double sinPhi = std::sin( currentIndependentVariable );
     double cosPhi = std::cos( currentIndependentVariable );
     double sinDeltaPhi = std::sin( currentIndependentVariable - initialIndependentVariable );
     double cosDeltaPhi = std::cos( currentIndependentVariable - initialIndependentVariable );
-    double zeta4 = currentDromoState( orbital_element_conversions::dromoElement4Index );
-    double zeta5 = currentDromoState( orbital_element_conversions::dromoElement5Index );
-    double zeta6 = currentDromoState( orbital_element_conversions::dromoElement6Index );
-    double zeta7 = currentDromoState( orbital_element_conversions::dromoElement7Index );
+    double zeta4 = currentDromoState( orbital_element_conversions::dromoPZeta4Index );
+    double zeta5 = currentDromoState( orbital_element_conversions::dromoPZeta5Index );
+    double zeta6 = currentDromoState( orbital_element_conversions::dromoPZeta6Index );
+    double zeta7 = currentDromoState( orbital_element_conversions::dromoPZeta7Index );
 
     Eigen::Vector3d perturbingAccelerationInRswFrame = perturbingNonPotentialAccelerationsInRswFrame + perturbingPotentialAccelerationsInRswFrame;
     double term1 = perturbingAccelerationInRswFrame( 0 ) / ( zeta3 * s - 2 * perturbingPotential );
     double term2 = s / zeta3 - 1;
     double term3 = perturbingAccelerationInRswFrame( 1 ) / ( zeta3 * s * transverseVelocity );
 
-    stateDerivative( orbital_element_conversions::dromoElement1Index ) = sinPhi / s * term1 - term2 * cosPhi * zeta3Derivative;
-    stateDerivative( orbital_element_conversions::dromoElement2Index ) = - cosPhi / s * term1 - term2 * sinPhi * zeta3Derivative;
-    stateDerivative( orbital_element_conversions::dromoElement4Index ) =
+    stateDerivative( orbital_element_conversions::dromoPZeta1Index ) = sinPhi / s * term1 - term2 * cosPhi * zeta3Derivative;
+    stateDerivative( orbital_element_conversions::dromoPZeta2Index ) = - cosPhi / s * term1 - term2 * sinPhi * zeta3Derivative;
+    stateDerivative( orbital_element_conversions::dromoPZeta4Index ) =
             1 / ( 2 * s ) * ( term3 * ( zeta7 * cosDeltaPhi - zeta6 * sinDeltaPhi ) + zeta5 * ( transverseVelocity - s ) );
-    stateDerivative( orbital_element_conversions::dromoElement5Index ) =
+    stateDerivative( orbital_element_conversions::dromoPZeta5Index ) =
             1 / ( 2 * s ) * ( term3 * ( zeta6 * cosDeltaPhi + zeta7 * sinDeltaPhi ) - zeta4 * ( transverseVelocity - s ) );
-    stateDerivative( orbital_element_conversions::dromoElement4Index ) =
+    stateDerivative( orbital_element_conversions::dromoPZeta4Index ) =
             - 1 / ( 2 * s ) * ( term3 * ( zeta5 * cosDeltaPhi - zeta4 * sinDeltaPhi ) - zeta7 * ( transverseVelocity - s ) );
-    stateDerivative( orbital_element_conversions::dromoElement4Index ) =
+    stateDerivative( orbital_element_conversions::dromoPZeta4Index ) =
             - 1 / ( 2 * s ) * ( term3 * ( zeta4 * cosDeltaPhi + zeta5 * sinDeltaPhi ) + zeta6 * ( transverseVelocity - s ) );
 
     // Compute time derivative
     if ( timeType == scaled_physical_time )
     {
-        stateDerivative( orbital_element_conversions::dromoTimeIndex ) = 1 / ( zeta3 * std::pow( s, 2 ) );
+        stateDerivative( orbital_element_conversions::dromoPTimeIndex ) = 1 / ( zeta3 * std::pow( s, 2 ) );
     }
     else if ( timeType == linear_time_element or timeType == constant_time_element )
     {
         double semiMajorAxis = - 1 / ( 2 * energy );
         double k4 = zeta3 + std::sqrt( - 2 * energy );
-        double k3 = currentDromoState( orbital_element_conversions::dromoElement1Index ) * cosPhi +
-                currentDromoState( orbital_element_conversions::dromoElement2Index ) * sinPhi;
+        double k3 = currentDromoState( orbital_element_conversions::dromoPZeta1Index ) * cosPhi +
+                    currentDromoState( orbital_element_conversions::dromoPZeta2Index ) * sinPhi;
         double k1 = std::sqrt( semiMajorAxis ) * radialVelocity / std::pow( s, 2 ) * ( ( zeta3 + s ) / k4 + 2 * k3 / zeta3 + 1 );
         double k2 = 1 / std::pow( s, 2 ) * ( k4 / zeta3 + k3 / k4 + std::pow( radialVelocity, 2 ) / ( k4 * s ) );
 
@@ -109,13 +109,13 @@ Eigen::Vector8d computeStateDerivativeForDromoP(
 
         if ( timeType == linear_time_element )
         {
-            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3.0/2.0 ) *
-                    ( 1 + energyDerivative * ( termT1 + k1 ) + termT2 );
+            stateDerivative( orbital_element_conversions::dromoPTimeIndex ) = std::pow( semiMajorAxis, 3.0 / 2.0 ) *
+                                                                              ( 1 + energyDerivative * ( termT1 + k1 ) + termT2 );
         }
         else // Constant time element
         {
-            stateDerivative( orbital_element_conversions::dromoTimeIndex ) = std::pow( semiMajorAxis, 3.0/2.0 ) *
-                    ( energyDerivative * ( termT1 - 3 * semiMajorAxis * currentIndependentVariable + k1 ) ) + termT2;
+            stateDerivative( orbital_element_conversions::dromoPTimeIndex ) = std::pow( semiMajorAxis, 3.0 / 2.0 ) *
+                                                                              ( energyDerivative * ( termT1 - 3 * semiMajorAxis * currentIndependentVariable + k1 ) ) + termT2;
         }
     }
     else
