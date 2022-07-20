@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef TUDATBUNDLE_DROMOELEMENTCONVERSIONS_H
-#define TUDATBUNDLE_DROMOELEMENTCONVERSIONS_H
+#ifndef TUDAT_DROMO_ELEMENT_CONVERSIONS_H
+#define TUDAT_DROMO_ELEMENT_CONVERSIONS_H
 
 #include "tudat/basics/basicTypedefs.h"
 #include "tudat/math/basic/mathematicalConstants.h"
@@ -43,21 +43,6 @@ namespace orbital_element_conversions
 double computeDromoUnitOfLengthFromCartesianElements (const Eigen::Vector6d& initialCartesianElements )
 {
     return initialCartesianElements.segment( 0, 3 ).norm();
-}
-
-//! Computes the unit of length used in the Dromo propagator.
-/*!
- * Computes the unit of length used to make variables dimensionless in the Dromo propagator, starting from the keplerian
- * elements. The unit of length is selected to be the inital radial position. Bau (2013), section 2.
- *
- * @param initialKeplerianElements Initial cartesian state.
- * @return Unit of length.
- */
-double computeDromoUnitOfLengthFromKeplerianElements (const Eigen::Vector6d& initialKeplerianElements )
-{
-    return initialKeplerianElements( semiMajorAxisIndex ) *
-        ( 1 - std::pow( initialKeplerianElements( eccentricityIndex ), 2 ) ) /
-        ( 1 + initialKeplerianElements( eccentricityIndex ) * std::cos( initialKeplerianElements( trueAnomalyIndex ) ) );
 }
 
 //! Computes the unit of time used in the Dromo(P) propagator.
@@ -217,6 +202,12 @@ double computeDromoScaledTimeToLinearTimeElementBias(const Eigen::Vector8d& drom
     double zeta3;
     computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
 
+    if ( energy >= 0 )
+    {
+        throw std::runtime_error( "Error in Dromo(P) when converting between time and linear time element, the latter "
+                                  "is not defined for parabolic and hyperbolic orbits." );
+    }
+
     double s = computeDromoS( dromoElementsExceptTime, currentIndependentVariable, zeta3 );
     double radialVelocity = computeDromoRadialVelocity( dromoElementsExceptTime, currentIndependentVariable );
 
@@ -267,6 +258,16 @@ double convertDromoLinearTimeElementToPhysicalTime(const double linearTimeElemen
                                                    const double unitOfLength,
                                                    const bool usingEnergyElement)
 {
+    double energy;
+    double zeta3;
+    computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
+
+    if ( energy >= 0 )
+    {
+        throw std::runtime_error( "Error in Dromo(P) when converting between linear time element and time, the former "
+                                  "is not defined for parabolic and hyperbolic orbits." );
+    }
+
     const double scaledTime = linearTimeElement - computeDromoScaledTimeToLinearTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement );
     return convertScaledTimeToPhysicalTime( scaledTime, centralBodyGravitationalParameter, unitOfLength );
@@ -293,6 +294,39 @@ double computeDromoLinearToConstantTimeElementBias(const Eigen::Vector8d& dromoE
     return - std::pow( semiMajorAxis, 3.0/2.0 ) * currentIndependentVariable;
 }
 
+//! Computes the difference between the constant time element and dimensionless time.
+/*!
+ * Computes the difference between the constant time element and dimensionless time, Eq. B1 of Bau (2014).
+ *
+ * @param dromoElementsExceptTime Dromo(P) state such time element doesn't have to be set.
+ * @param currentIndependentVariable Current value of the independent variable.
+ * @param usingEnergyElement Flag indicating whether the dromo state uses energy (true) or zeta3 (false).
+ * @return Difference.
+ */
+double computeDromoScaledTimeToHyperbolicConstantTimeElementBias(const Eigen::Vector8d& dromoElementsExceptTime,
+                                                                 const double currentIndependentVariable,
+                                                                 const bool usingEnergyElement)
+{
+    double energy;
+    double zeta3;
+    computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
+
+    double s = computeDromoS( dromoElementsExceptTime, currentIndependentVariable, zeta3 );
+    double radialVelocity = computeDromoRadialVelocity( dromoElementsExceptTime, currentIndependentVariable );
+
+    double positiveSemiMajorAxis = 1 / ( 2 * energy );
+
+    double generalizedEccentricity = std::sqrt(1 + 2.0 * energy / std::pow(zeta3, 2) );
+
+    double k3 =
+        dromoElementsExceptTime( orbital_element_conversions::dromoPZeta1Index ) * std::cos( currentIndependentVariable ) +
+        dromoElementsExceptTime( orbital_element_conversions::dromoPZeta2Index ) * std::sin( currentIndependentVariable );
+
+    return - radialVelocity * positiveSemiMajorAxis / ( zeta3 * s ) + 2 * std::pow( positiveSemiMajorAxis, 3.0 / 2.0 ) *
+        std::atanh( radialVelocity / ( zeta3 * generalizedEccentricity + k3 ) *
+        std::sqrt( ( generalizedEccentricity - 1 ) / ( generalizedEccentricity + 1 ) ) );
+}
+
 //! Converts the dimensional physical time to constant time element.
 /*!
  * Converts the dimensional physical time to linear time element, Eq. 7 of Geul (2016).
@@ -312,12 +346,33 @@ double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
                                                      const double unitOfLength,
                                                      const bool usingEnergyElement)
 {
-    double linearTimeElement = convertPhysicalTimeToDromoLinearTimeElement(
+    double energy;
+    double zeta3;
+    computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
+
+    double constantTimeElement;
+
+    if ( energy == 0 ) // Parabolic orbit
+    {
+        throw std::runtime_error( "Error in Dromo(P) when converting between time and constant time element, the latter "
+                                  "is not defined for parabolic orbits." );
+    }
+    else if ( energy < 0 ) // Eccentric orbit
+    {
+        double linearTimeElement = convertPhysicalTimeToDromoLinearTimeElement(
             physicalTime, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter, unitOfLength,
             usingEnergyElement );
 
-    return linearTimeElement + computeDromoLinearToConstantTimeElementBias(
+        constantTimeElement = linearTimeElement + computeDromoLinearToConstantTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
+    }
+    else
+    {
+        constantTimeElement = convertPhysicalTimeToScaledTime( physicalTime, centralBodyGravitationalParameter, unitOfLength ) +
+                computeDromoScaledTimeToHyperbolicConstantTimeElementBias( dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement );
+    }
+
+    return constantTimeElement;
 }
 
 //! Converts constant time element to the dimensional physical time.
@@ -339,16 +394,42 @@ double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeEl
                                                      const double unitOfLength,
                                                      const bool usingEnergyElement)
 {
-    const double linearTimeElement = constantTimeElement - computeDromoLinearToConstantTimeElementBias(
+    double time;
+
+    double energy;
+    double zeta3;
+    computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
+
+    if ( energy == 0 ) // Parabolic orbit
+    {
+        throw std::runtime_error( "Error in Dromo(P) when converting between constant time element and time, the former "
+                                  "is not defined for parabolic orbits." );
+    }
+    else if ( energy < 0 ) // Eccentric orbit
+    {
+        double linearTimeElement = constantTimeElement - computeDromoLinearToConstantTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
-    return convertDromoLinearTimeElementToPhysicalTime(
+
+        time = convertDromoLinearTimeElementToPhysicalTime(
             linearTimeElement, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter,
             unitOfLength, usingEnergyElement );
+    }
+    else
+    {
+        double scaledTime = constantTimeElement - computeDromoScaledTimeToHyperbolicConstantTimeElementBias(
+                dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement );
+
+        time = convertScaledTimeToPhysicalTime( scaledTime, centralBodyGravitationalParameter, unitOfLength );
+
+        throw std::runtime_error( "TODO: test constant time element for hyperbolic orbits." );
+    }
+
+    return time;
 }
 
 //! Converts Cartesian to Dromo(P) elements, following Bau (2013) and Bau (2014).
 /*!
- * Converts Cartesian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+ * Converts Cartesian to Dromo(P) elements, following Bau (2013) and Bau (2014). Zeta7 is always taken to be negative.
  * @param cartesianElements Converted state in Cartesian elements. The order of elements is fixed!
  *         cartesianElements( 0 ) = x-position coordinate,                                      [m]
  *         cartesianElements( 1 ) = y-position coordinate,                                      [m]
@@ -454,7 +535,8 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     dromoElements( dromoPZeta2Index ) = ( s - zeta3 ) * std::sin( currentIndependentVariable ) -
             radialVelocityNorm * std::cos( currentIndependentVariable );
 
-    dromoElements( dromoPZeta7Index ) = -0.5 * std::sqrt( 1 + Q0( 0, 0) + Q0( 1, 1) + Q0( 2, 2) );
+    int sign = -1; // Can either take the value -1 or 1
+    dromoElements( dromoPZeta7Index ) = sign * 0.5 * std::sqrt( 1 + Q0( 0, 0) + Q0( 1, 1) + Q0( 2, 2) );
 
     const double tolerance = 1e-10;
     if ( std::abs( dromoElements( dromoPZeta7Index ) ) > tolerance )
@@ -465,7 +547,7 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     }
     else
     {
-        dromoElements( dromoPZeta6Index ) = std::sqrt( ( Q0( 2, 2) + 1 ) / 2 );
+        dromoElements( dromoPZeta6Index ) = sign * std::sqrt( ( Q0( 2, 2) + 1 ) / 2 );
         if ( std::abs( dromoElements( dromoPZeta6Index ) ) > tolerance )
         {
             dromoElements( dromoPZeta4Index ) = Q0( 0, 2) / ( 2 * dromoElements( dromoPZeta6Index ) );
@@ -473,14 +555,14 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
         }
         else
         {
-            dromoElements( dromoPZeta4Index ) = std::sqrt( ( 1 - Q0( 1, 1) ) / 2 );
+            dromoElements( dromoPZeta4Index ) = sign * std::sqrt( ( 1 - Q0( 1, 1) ) / 2 );
             if ( std::abs( dromoElements( dromoPZeta4Index ) ) > tolerance )
             {
                 dromoElements( dromoPZeta5Index ) = Q0( 0, 1) / ( 2 * dromoElements( dromoPZeta4Index ) );
             }
             else
             {
-                dromoElements( dromoPZeta5Index ) = 1;
+                dromoElements( dromoPZeta5Index ) = sign * 1;
             }
         }
     }
@@ -527,7 +609,7 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
 
 //! Converts Keplerian to Dromo(P) elements, following Bau (2013) and Bau (2014).
 /*!
- * Converts Keplerian to Dromo(P) elements, following Bau (2013) and Bau (2014).
+ * Converts Keplerian to Dromo(P) elements, following Bau (2013) and Bau (2014). Zeta7 is always taken to be negative.
  * \param keplerianElements Vector containing Keplerian elements. Order of elements is important!
  *         keplerianElements( 0 ) = semi-major axis,                                            [m]
  *         keplerianElements( 1 ) = eccentricity,                                               [-]
@@ -728,6 +810,14 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     double aop = keplerianElements( argumentOfPeriapsisIndex );
     double trAnom = keplerianElements( trueAnomalyIndex );
 
+    // Check if orbit is not parabolic
+    if ( ecc == 1.0 )
+    {
+        throw std::runtime_error( "Error when converting Keplerian to Dromo(P) elements, equations have singularities for "
+                                  "parabolic orbits. The Dromo(P) elements for parabolic orbits can be computed by converting "
+                                  "from cartesian elements." );
+    }
+
     // Compute dimensionless potential
     double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
     double dimensionlessPerturbingPotential = perturbingPotential * std::pow( unitOfTime, 2 ) / std::pow( unitOfLength, 2 );
@@ -772,10 +862,30 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
     }
 
     double dPhi = currentIndependentVariable - initialIndependentVariable;
-    dromoElements( dromoPZeta4Index ) = std::sin( inc / 2 ) * std::cos( ( raan - aop - trAnom + dPhi ) / 2 );
-    dromoElements( dromoPZeta5Index ) = std::sin( inc / 2 ) * std::sin( ( raan - aop - trAnom + dPhi ) / 2 );
-    dromoElements( dromoPZeta6Index ) = std::cos( inc / 2 ) * std::sin( ( raan + aop + trAnom - dPhi ) / 2 );
+
+    // Note on the selection of the sign of [z4,z5,z6,z7], z=zeta:
+    // The Dromo(P) equations of motion and element conversions have an ambiguity when it comes to the sign of [z4,z5,z6,z7],
+    // i.e. its the same using [z4,z5,z6,z7] or -[z4,z5,z6,z7]. When converting cartesian to Dromo(P) elements, that sign
+    // is explicitly selected when computing z7. However, following the equations in Bau(2013), that is not done when
+    // converting between Kelplerian and Dromo(P) elements. To ensure consistency in the conversions cartesian->Dromo(P)
+    // and keplerian->Dromo(P) zeta7 is always taken to be negative.
+
+    // Compute zeta7 and select it to be negative
     dromoElements( dromoPZeta7Index ) = std::cos( inc / 2 ) * std::cos( ( raan + aop + trAnom - dPhi ) / 2 );
+    int signFlip;
+    if ( dromoElements( dromoPZeta7Index ) >= 0)
+    {
+        signFlip = -1;
+    }
+    else
+    {
+        signFlip = 1;
+    }
+    dromoElements( dromoPZeta7Index ) *= signFlip;
+
+    dromoElements( dromoPZeta4Index ) = signFlip * std::sin( inc / 2 ) * std::cos( ( raan - aop - trAnom + dPhi ) / 2 );
+    dromoElements( dromoPZeta5Index ) = signFlip * std::sin( inc / 2 ) * std::sin( ( raan - aop - trAnom + dPhi ) / 2 );
+    dromoElements( dromoPZeta6Index ) = signFlip * std::cos( inc / 2 ) * std::sin( ( raan + aop + trAnom - dPhi ) / 2 );
 
 
     // Compute the time element
@@ -891,4 +1001,4 @@ double convertDromoTimeToPhysicalTime(const Eigen::Vector8d dromoElements,
 
 } // close tudat
 
-#endif //TUDATBUNDLE_DROMOELEMENTCONVERSIONS_H
+#endif //TUDAT_DROMO_ELEMENT_CONVERSIONS_H

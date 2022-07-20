@@ -24,7 +24,6 @@
 #include "tudat/astro/basic_astro/unitConversions.h"
 #include "tudat/basics/testMacros.h"
 #include "tudat/math/basic/mathematicalConstants.h"
-#include "tudat/math/basic/basicMathematicsFunctions.h"
 
 #include "tudat/astro/basic_astro/dromoElementConversions.h"
 #include "tudat/astro/propagators/nBodyStateDerivative.h"
@@ -63,9 +62,9 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
 
     double gravitationalParameter = 398600.44e9; // Earth's, but any parameter would do.
 
-    for ( int useEnergyElement = 0; useEnergyElement < 2; ++useEnergyElement )
+    for ( int useEnergyElement = 0; useEnergyElement < 1; ++useEnergyElement )
     {
-        for ( int timeTypeIndex = 0; timeTypeIndex < 3; ++timeTypeIndex )
+        for ( int timeTypeIndex = 0; timeTypeIndex < 1; ++timeTypeIndex )
         {
             propagators::TimeElementType timeType;
             if ( timeTypeIndex == 0 )
@@ -91,6 +90,7 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
                 keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 15.0 );
                 keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 170.0 );
 
+                // Overwrite perturbing potential
                 perturbingPotential = -5251.8932307137101816;
 
                 // Set expected DromoP elements [-,-,-,-,-,-,-,-].
@@ -126,18 +126,18 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
                 cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
                 // std::cout << std::setprecision(18) << cartesianElements.transpose() << std::endl;
 
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
                 // Convert keplerian to Dromo(P) elements
-                double unitOfLengthKep = computeDromoUnitOfLengthFromKeplerianElements( keplerianElements );
                 computedDromoPElements = convertKeplerianToDromoElements(
-                        keplerianElements, gravitationalParameter, unitOfLengthKep, perturbingPotential, time,
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
                         useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
                 // Compare computed and expected values
                 TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
 
                 // Convert cartesian to Dromo(P) elements
-                double unitOfLengthCart = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
                 computedDromoPElements = convertCartesianToDromoElements(
-                        cartesianElements, gravitationalParameter, unitOfLengthCart, perturbingPotential,
+                        cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
                         time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
                 // Compare computed and expected values
                 TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
@@ -154,20 +154,23 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
                 keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 10.0 );
 
                 // Overwrite perturbing potential
+                perturbingPotential = -8495.2852155969176238;
 
                 // Set expected Dromo(P) elements [-,-,-,-,-,-,-,-].
-                // (Results were calculated using Jacco Geul's code)
+                // Results were calculated using Jacco Geul's code or by hand (constant time element)
                 if ( timeType == propagators::scaled_physical_time )
                 {
                     expectedDromoPElements( dromoPTimeIndex ) = 0.0002611479545499;
                 }
                 else if ( timeType == propagators::linear_time_element )
                 {
+                    // Linear time element is not defined for hyperbolic orbits
                     expectedDromoPElements( dromoPTimeIndex ) = TUDAT_NAN;
                 }
                 else // Constant time element
                 {
-                    expectedDromoPElements( dromoPTimeIndex ) = TUDAT_NAN;
+                    // Value computed by hand
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.0996766923044830;
                 }
                 expectedDromoPElements( dromoPZeta1Index ) = 1.0995168509937607;
                 expectedDromoPElements( dromoPZeta2Index ) = 0.3710210777579507;
@@ -188,266 +191,401 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
                 cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
                 // std::cout << std::setprecision(18) << cartesianElements.transpose() << std::endl;
 
-        //        // Convert to modified equinoctial elements.
-        //        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-        //                                                                     gravitationalParameter,
-        //                                                                     avoidSingularity );
-        //
-        //        // Compare.
-        //        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( testMEE, computedMEE, tolerance );
-        //
-        //        // Convert to modified equinoctial elements using direct function.
-        //        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-        //                                                                     gravitationalParameter );
-        //
-        //        // Compare.
-        //        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( testMEE, computedMEE, tolerance );
+                if ( timeType != propagators::linear_time_element )
+                {
+                    double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                     // Convert keplerian to Dromo(P) elements
+                    computedDromoPElements = convertKeplerianToDromoElements(
+                            keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                            useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                    // Compare computed and expected values
+                    TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
+
+                    // Convert cartesian to Dromo(P) elements
+                    computedDromoPElements = convertCartesianToDromoElements(
+                            cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                            time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                    // Compare computed and expected values
+                    TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
+                }
+                // Check if error is thrown for linear time element
+                else
+                {
+                    bool isExceptionFound = false;
+                    try
+                    {
+                        double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+                        computedDromoPElements = convertCartesianToDromoElements(
+                                cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                                time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+
+                    }
+                    catch( std::runtime_error const& )
+                    {
+                        isExceptionFound = true;
+                    }
+                     // Check if runtime error has occurred
+                    BOOST_CHECK( isExceptionFound );
+                }
+            }
+
+            // Case 3: Parabolic retrograde orbit.
+            {
+                // Set Keplerian elements [m,-,rad,rad,rad,rad].
+                keplerianElements( semiLatusRectumIndex ) = 1.0e7;
+                keplerianElements( eccentricityIndex ) = 1.0;
+                keplerianElements( inclinationIndex ) = convertDegreesToRadians( 170.0 );
+                keplerianElements( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 350.0 );
+                keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 15.0 );
+                keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 170.0 );
+
+                // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
+                cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
+                // std::cout << std::setprecision(18) << cartesianElements.transpose() << std::endl;
+
+                // Overwrite perturbing potential
+                perturbingPotential = -0.0303869376125564;
+
+                // Set expected Dromo(P) elements [-,-,-,-,-,-,-,-].
+                // (Results were calculated using Jacco Geul's code)
+                if ( timeType == propagators::scaled_physical_time )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0000004965365196;
+                }
+                else if ( timeType == propagators::linear_time_element )
+                {
+                    // Linear time element is not defined for parabolic orbits
+                    expectedDromoPElements( dromoPTimeIndex ) = TUDAT_NAN;
+                }
+                else // Constant time element
+                {
+                    // Constant time element is not defined for parabolic orbits
+                    expectedDromoPElements( dromoPTimeIndex ) = TUDAT_NAN;
+                }
+                expectedDromoPElements( dromoPZeta1Index ) = -6.3363763345734938;
+                expectedDromoPElements( dromoPZeta2Index ) = -5.0669337369568375;
+                if ( useEnergyElement == 0 )
+                {
+                    expectedDromoPElements( dromoPZeta3Index ) = 8.1131672390265432;
+                }
+                else
+                {
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.0000000501795938;
+                }
+                expectedDromoPElements( dromoPZeta4Index ) = -0.5253043567398263;
+                expectedDromoPElements( dromoPZeta5Index ) = 0.8464391350216914;
+                expectedDromoPElements( dromoPZeta6Index ) = -0.0834253569135866;
+                expectedDromoPElements( dromoPZeta7Index ) = -0.0252256480142080;
+
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                // Conversion from keplerian to Dromo(P) elements not defined for parabolic orbits - check if error is
+                // thrown
+                bool isExceptionFound = false;
+                try
+                {
+                    computedDromoPElements = convertKeplerianToDromoElements(
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                        useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                }
+                catch( std::runtime_error const& )
+                {
+                    isExceptionFound = true;
+                }
+                 // Check if runtime error has occurred
+                BOOST_CHECK( isExceptionFound );
+
+                // Convert cartesian to Dromo(P) elements
+                // Don't test the linear and constant time elements as those aren't defined for parabolic orbits
+                if ( timeType != propagators::linear_time_element and timeType != propagators::constant_time_element )
+                {
+                    computedDromoPElements = convertCartesianToDromoElements(
+                            cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                            time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                    // Compare computed and expected values
+                    // Because some of the elements are near-zero, a close fraction/percentage check will fail. Therefore,
+                    // 1.0 is added to these elements to avoid this.
+                    Eigen::Vector8d vectorToAdd = ( Eigen::Vector8d( ) << 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0 ).finished( );
+                    Eigen::Vector8d expectedDromoPElementsPlusOne =  expectedDromoPElements + vectorToAdd;
+                    Eigen::Vector8d computedDromoPElementsPlusOne = computedDromoPElements + vectorToAdd;
+                    TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElementsPlusOne, computedDromoPElementsPlusOne, tolerance );
+                }
+
+            }
+
+
+            // Case 4: Circular prograde orbit.
+            {
+                // Set Keplerian elements [m,-,rad,rad,rad,rad].
+                keplerianElements( semiMajorAxisIndex ) = 1.0e7;
+                keplerianElements( eccentricityIndex ) = 0.0;
+                keplerianElements( inclinationIndex ) = convertDegreesToRadians( 50.0 );
+                keplerianElements( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 15.0 );
+                keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 170.0 );
+
+                // Overwrite perturbing potential
+                perturbingPotential = -8293.7736712349324080;
+
+                // Set expected DromoP elements [-,-,-,-,-,-,-,-].
+                // (Results were calculated using Jacco Geul's code)
+                if ( timeType == propagators::scaled_physical_time )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002651662075303;
+                }
+                else if ( timeType == propagators::linear_time_element )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002651662075304;
+                }
+                else // Constant time element
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.4994228875173207;
+                }
+                expectedDromoPElements( dromoPZeta1Index ) = -0.0003652773723825;
+                expectedDromoPElements( dromoPZeta2Index ) = -0.0001995519380162;
+                if ( useEnergyElement == 0 )
+                {
+                    expectedDromoPElements( dromoPZeta3Index ) = 1.0002081373298761;
+                }
+                else
+                {
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.5002080723661827;
+                }
+                expectedDromoPElements( dromoPZeta4Index ) = -0.1907067137786016;
+                expectedDromoPElements( dromoPZeta5Index ) = 0.3771434004148780;
+                expectedDromoPElements( dromoPZeta6Index ) = -0.8870776042295483;
+                expectedDromoPElements( dromoPZeta7Index ) = -0.1857071051888838;
+
+                // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
+                cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
+                // std::cout << std::setprecision(18) << cartesianElements.transpose() << std::endl;
+
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                // Convert keplerian to Dromo(P) elements
+                computedDromoPElements = convertKeplerianToDromoElements(
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                        useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Zeta1 and zeta2 require slightly higher tolerance... not sure why
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, 1e-12 );
+
+                // Convert cartesian to Dromo(P) elements
+                computedDromoPElements = convertCartesianToDromoElements(
+                        cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                        time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Zeta1 and zeta2 require slightly higher tolerance... not sure why
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, 1e-12 );
+            }
+
+            // Case 5: 0 inclination orbit.
+            {
+                // Set Keplerian elements [m,-,rad,rad,rad,rad].
+                keplerianElements( semiMajorAxisIndex ) = 1.0e7;
+                keplerianElements( eccentricityIndex ) = 0.1;
+                keplerianElements( inclinationIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 260.0 );
+                keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 170.0 );
+
+                // Overwrite perturbing potential
+                perturbingPotential = -6613.9431102345906766;
+
+                // Set expected DromoP elements [-,-,-,-,-,-,-,-].
+                // (Results were calculated using Jacco Geul's code)
+                if ( timeType == propagators::scaled_physical_time )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002304240862538;
+                }
+                else if ( timeType == propagators::linear_time_element )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0327839604446311;
+                }
+                else // Constant time element
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.4014897612054770;
+                }
+                expectedDromoPElements( dromoPZeta1Index ) = -0.0826104036599911;
+                expectedDromoPElements( dromoPZeta2Index ) = -0.0659701268921979;
+                if ( useEnergyElement == 0 )
+                {
+                    expectedDromoPElements( dromoPZeta3Index ) = 1.0534169470365562;
+                }
+                else
+                {
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.5492553639343897;
+                }
+                expectedDromoPElements( dromoPZeta4Index ) = -0.0000000000000000;
+                expectedDromoPElements( dromoPZeta5Index ) = -0.0000000000000000;
+                expectedDromoPElements( dromoPZeta6Index ) = -0.3530838749925205;
+                expectedDromoPElements( dromoPZeta7Index ) = -0.9355916722696211;
+
+                // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
+                cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
+                // std::cout << std::setprecision(18) << cartesianElements.transpose() << std::endl;
+
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                // Convert keplerian to Dromo(P) elements
+                computedDromoPElements = convertKeplerianToDromoElements(
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                        useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
+
+                // Convert cartesian to Dromo(P) elements
+                computedDromoPElements = convertCartesianToDromoElements(
+                        cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                        time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElements, computedDromoPElements, tolerance );
+            }
+
+            // Case 6: 180 inclination orbit.
+            {
+                // Set Keplerian elements [m,-,rad,rad,rad,rad].
+                keplerianElements( semiMajorAxisIndex ) = 1.0e7;
+                keplerianElements( eccentricityIndex ) = 0.1;
+                keplerianElements( inclinationIndex ) = PI; // = 180 deg
+                keplerianElements( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 12.0 );
+                keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 190.0 );
+
+                // Overwrite perturbing potential
+                perturbingPotential = -6613.9431102345870386;
+
+                // Set expected DromoP elements [-,-,-,-,-,-,-,-].
+                // (Results were calculated using Jacco Geul's code)
+                if ( timeType == propagators::scaled_physical_time )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002304240862538;
+                }
+                else if ( timeType == propagators::linear_time_element )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.0323231122721236;
+                }
+                else // Constant time element
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.4665968339222320;
+                }
+                expectedDromoPElements( dromoPZeta1Index ) = -0.1001465392300703;
+                expectedDromoPElements( dromoPZeta2Index ) = -0.0338704460448820;
+                if ( useEnergyElement == 0 )
+                {
+                    expectedDromoPElements( dromoPZeta3Index ) = 1.0534169470365560;
+                }
+                else
+                {
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.5492553639343895;
+                }
+                expectedDromoPElements( dromoPZeta4Index ) = -0.0579812459023547;
+                expectedDromoPElements( dromoPZeta5Index ) = 0.9983176724488106;
+                expectedDromoPElements( dromoPZeta6Index ) = 0.0000000000000001;
+                expectedDromoPElements( dromoPZeta7Index ) = 0.0000000000000000;
+
+                // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
+                cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
+                // std::cout << std::setprecision(20) << cartesianElements.transpose() << std::endl;
+
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                // Convert keplerian to Dromo(P) elements
+                computedDromoPElements = convertKeplerianToDromoElements(
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                        useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Because some of the elements are near-zero, a close fraction/percentage check will fail. Therefore,
+                // 1.0 is added to these elements to avoid this.
+                Eigen::Vector8d vectorToAdd = ( Eigen::Vector8d( ) << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 ).finished( );
+                Eigen::Vector8d expectedDromoPElementsPlusOne =  expectedDromoPElements + vectorToAdd;
+                Eigen::Vector8d computedDromoPElementsPlusOne = computedDromoPElements + vectorToAdd;
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElementsPlusOne, computedDromoPElementsPlusOne, tolerance );
+
+                // Convert cartesian to Dromo(P) elements
+                computedDromoPElements = convertCartesianToDromoElements(
+                        cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                        time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Because some of the elements are near-zero, a close fraction/percentage check will fail. Therefore,
+                // 1.0 is added to these elements to avoid this.
+                computedDromoPElementsPlusOne = computedDromoPElements + vectorToAdd;
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElementsPlusOne, computedDromoPElementsPlusOne, tolerance );
+            }
+
+            // Case 7: 0 eccentricity and inclination orbit.
+            {
+                // Set Keplerian elements [m,-,rad,rad,rad,rad].
+                keplerianElements( semiMajorAxisIndex ) = 1.0e7;
+                keplerianElements( eccentricityIndex ) = 0.0;
+                keplerianElements( inclinationIndex ) = 0.0; // = 180 deg
+                keplerianElements( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 0.0 );
+                keplerianElements( trueAnomalyIndex ) = convertDegreesToRadians( 10.0 );
+
+                // Overwrite perturbing potential
+                perturbingPotential = -8758.7284433312270266;
+
+                // Set expected DromoP elements [-,-,-,-,-,-,-,-].
+                // (Results were calculated using Jacco Geul's code)
+                if ( timeType == propagators::scaled_physical_time )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002651662075303;
+                }
+                else if ( timeType == propagators::linear_time_element )
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = 0.0002651662075303;
+                }
+                else // Constant time element
+                {
+                    expectedDromoPElements( dromoPTimeIndex ) = -0.4994054091925029;
+                }
+                expectedDromoPElements( dromoPZeta1Index ) = -0.0003857595798718;
+                expectedDromoPElements( dromoPZeta2Index ) = -0.0002107414189651;
+                if ( useEnergyElement == 0 )
+                {
+                    expectedDromoPElements( dromoPZeta3Index ) = 1.0002198095021353;
+                }
+                else
+                {
+                    expectedDromoPElements( dromoPEnergyIndex ) = -0.5002197370490443;
+                }
+                expectedDromoPElements( dromoPZeta4Index ) = -0.0000000000000000;
+                expectedDromoPElements( dromoPZeta5Index ) = -0.0000000000000000;
+                expectedDromoPElements( dromoPZeta6Index ) = 0.1620162307246385;
+                expectedDromoPElements( dromoPZeta7Index ) = -0.9867880932509171;
+
+                // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
+                cartesianElements = convertKeplerianToCartesianElements( keplerianElements, gravitationalParameter );
+                // std::cout << std::setprecision(20) << cartesianElements.transpose() << std::endl;
+
+                double unitOfLength = computeDromoUnitOfLengthFromCartesianElements( cartesianElements );
+
+                // Convert keplerian to Dromo(P) elements
+                computedDromoPElements = convertKeplerianToDromoElements(
+                        keplerianElements, gravitationalParameter, unitOfLength, perturbingPotential, time,
+                        useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Because some of the elements are near-zero, a close fraction/percentage check will fail. Therefore,
+                // 1.0 is added to these elements to avoid this.
+                Eigen::Vector8d vectorToAdd = ( Eigen::Vector8d( ) << 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0 ).finished( );
+                Eigen::Vector8d expectedDromoPElementsPlusOne =  expectedDromoPElements + vectorToAdd;
+                Eigen::Vector8d computedDromoPElementsPlusOne = computedDromoPElements + vectorToAdd;
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElementsPlusOne, computedDromoPElementsPlusOne, tolerance );
+
+                // Convert cartesian to Dromo(P) elements
+                computedDromoPElements = convertCartesianToDromoElements(
+                        cartesianElements, gravitationalParameter, unitOfLength, perturbingPotential,
+                        time, useEnergyElement, timeType, initialIndependentVariable, currentIndependentVariable);
+                // Compare computed and expected values
+                // Because some of the elements are near-zero, a close fraction/percentage check will fail. Therefore,
+                // 1.0 is added to these elements to avoid this.
+                computedDromoPElementsPlusOne = computedDromoPElements + vectorToAdd;
+                TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedDromoPElementsPlusOne, computedDromoPElementsPlusOne, tolerance );
             }
         }
     }
-
-
-
-
-//
-//    // Case 3: Parabolic retrograde orbit.
-//    {
-//        // Set Keplerian elements [m,-,rad,rad,rad,rad].
-//        testKepler( semiMajorAxisIndex ) = 1.0e7;
-//        testKepler( eccentricityIndex ) = 1.0;
-//        avoidSingularity = true;
-//        testKepler( trueAnomalyIndex ) = convertDegreesToRadians( 170.0 );
-//
-//        // Set expected modified equinoctial elements [m,-,-,-,-,rad]. (Results were calculated by
-//        // hand).
-//        testMEE( semiLatusRectumIndex ) = 1.0e7;
-//        testMEE( fElementIndex )
-//                = 0.90630778703664996324255265675432;
-//        testMEE( gElementIndex )
-//                = -0.42261826174069943618697848964773;
-//        testMEE( hElementIndex )
-//                = 0.0845075596072044152327702959491;
-//        testMEE( kElementIndex )
-//                = 0.02264373235107538825570191377426;
-//        testMEE( trueLongitudeIndex )
-//                = 2.5307274153917778865393516143085;
-//
-//        // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
-//        testCartesianElements = convertKeplerianToCartesianElements( testKepler,
-//                                                                     gravitationalParameter );
-//
-//        // Convert to modified equinoctial elements.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter,
-//                                                                     avoidSingularity );
-//
-//        // Compare.
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( testMEE, computedMEE, tolerance );
-//
-//        // Convert to modified equinoctial elements using direct function.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter );
-//
-//        // Compare.
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( testMEE, computedMEE, tolerance );
-//    }
-//
-//    // Case 4: Circular prograde orbit.
-//    {
-//        // Set Keplerian elements [m,-,rad,rad,rad,rad].
-//        testKepler ( eccentricityIndex ) = 0.0;
-//        testKepler ( inclinationIndex ) = convertDegreesToRadians( 50.0 );
-//        avoidSingularity = false;
-//        testKepler ( argumentOfPeriapsisIndex ) = 0.0; // e = 0, so actually undefined
-//
-//        // Set expected modified equinoctial elements [m,-,-,-,-,rad]. (Results were calculated by
-//        // hand).
-//        testMEE ( semiLatusRectumIndex ) = 1.0e7;
-//        testMEE ( fElementIndex ) = 0.0;
-//        testMEE ( gElementIndex ) = 0.0;
-//        testMEE ( hElementIndex )
-//                = 0.45041861000828740764931177254188;
-//        testMEE ( kElementIndex )
-//                = 0.12068930280766941437578622043344;
-//        testMEE ( trueLongitudeIndex )
-//                = 3.2288591161895097173088279217039;
-//
-//        // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
-//        testCartesianElements = convertKeplerianToCartesianElements( testKepler,
-//                                                                     gravitationalParameter );
-//
-//        // Convert to modified equinoctial elements.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter,
-//                                                                     avoidSingularity );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this
-//        Eigen::Vector6d vectorToAdd
-//                = ( Eigen::Vector6d( ) << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ).finished( );
-//        Eigen::Vector6d computedMeePlusOne = computedMEE + vectorToAdd;
-//        Eigen::Vector6d testMeePlusOne = testMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//
-//        // Convert to modified equinoctial elements using direct function
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        computedMeePlusOne = computedMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//    }
-//
-//    // Case 5: 0 inclination orbit.
-//    {
-//        // Set Keplerian elements [m,-,rad,rad,rad,rad].
-//        testKepler ( eccentricityIndex ) = 0.1;
-//        testKepler ( inclinationIndex ) = 0.0;
-//        avoidSingularity = false;
-//        testKepler ( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 260.0 );
-//        testKepler ( longitudeOfAscendingNodeIndex ) = convertDegreesToRadians( 0.0 );
-//
-//        // Set expected modified equinoctial elements [m,-,-,-,-,rad]. (Results were calculated by
-//        // hand).
-//        testMEE( semiLatusRectumIndex ) = 9.9e6;
-//        testMEE( fElementIndex )
-//                = -0.01736481776669303488517166267693;
-//        testMEE( gElementIndex )
-//                = -0.09848077530122080593667430245895;
-//        testMEE( hElementIndex ) = 0.0;
-//        testMEE( kElementIndex ) = 0.0;
-//        testMEE( trueLongitudeIndex )
-//                = 1.221730476396030703846583537942;
-//
-//        // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
-//        testCartesianElements = convertKeplerianToCartesianElements( testKepler,
-//                                                                     gravitationalParameter );
-//
-//        // Convert to modified equinoctial elements.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter,
-//                                                                     avoidSingularity );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        Eigen::Vector6d vectorToAdd
-//                = ( Eigen::Vector6d( ) << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ).finished( );
-//        Eigen::Vector6d computedMeePlusOne = computedMEE + vectorToAdd;
-//        Eigen::Vector6d testMeePlusOne = testMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//
-//        // Convert to modified equinoctial elements using direct function.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        computedMeePlusOne = computedMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//    }
-//
-//    // Case 6: 180 inclination orbit.
-//    {
-//        // Set Keplerian elements [m,-,rad,rad,rad,rad].
-//        testKepler( eccentricityIndex ) = 0.1;
-//        testKepler( inclinationIndex ) = PI; // = 180 deg
-//        avoidSingularity = true;
-//        testKepler( argumentOfPeriapsisIndex ) = convertDegreesToRadians( 12.0 );
-//        testKepler( trueAnomalyIndex ) = convertDegreesToRadians( 190.0 );
-//
-//        // Set expected modified equinoctial elements [m,-,-,-,-,rad]. (Results were calculated by
-//        // hand).
-//        testMEE ( semiLatusRectumIndex ) = 9.9e6;
-//        testMEE ( fElementIndex )
-//                = 0.09781476007338056379285667478696;
-//        testMEE ( gElementIndex )
-//                = 0.02079116908177593371017422844051;
-//        testMEE ( hElementIndex )
-//                = 0.0;
-//        testMEE ( kElementIndex )
-//                = 0.0;
-//        testMEE ( trueLongitudeIndex )
-//                = 3.525565089028545745385855352347;
-//
-//        // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
-//        testCartesianElements = convertKeplerianToCartesianElements( testKepler,
-//                                                                     gravitationalParameter );
-//
-//        // Convert to modified equinoctial elements.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter,
-//                                                                     avoidSingularity );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        Eigen::Vector6d vectorToAdd
-//                = ( Eigen::Vector6d( ) << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ).finished( );
-//        Eigen::Vector6d computedMeePlusOne = computedMEE + vectorToAdd;
-//        Eigen::Vector6d testMeePlusOne = testMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//
-//        // Convert to modified equinoctial elements using direct function.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        computedMeePlusOne = computedMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//    }
-//
-//    // Case 7: 0 eccentricity and inclination orbit.
-//    {
-//        // Set Keplerian elements [m,-,rad,rad,rad,rad].
-//        testKepler( eccentricityIndex ) = 0.0;
-//        testKepler( inclinationIndex ) = 0.0;
-//        avoidSingularity = false;
-//
-//        // Set expected modified equinoctial elements [m,-,-,-,-,rad]. (Results were calculated by
-//        // hand).
-//        testMEE ( semiLatusRectumIndex ) = 1.0e7; // Circular
-//        testMEE ( fElementIndex ) = 0.0;
-//        testMEE ( gElementIndex ) = 0.0;
-//        testMEE ( hElementIndex ) = 0.0;
-//        testMEE ( kElementIndex ) = 0.0;
-//        testMEE ( trueLongitudeIndex )
-//                = 3.525565089028545745385855352347;
-//
-//        // Create starting Cartesian vector through the verified Kepler to Cartesian routine.
-//        testCartesianElements = convertKeplerianToCartesianElements( testKepler,
-//                                                                     gravitationalParameter );
-//
-//        // Convert to modified equinoctial elements.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter,
-//                                                                     avoidSingularity );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        Eigen::Vector6d vectorToAdd
-//                = ( Eigen::Vector6d( ) << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ).finished( );
-//        Eigen::Vector6d computedMeePlusOne = computedMEE + vectorToAdd;
-//        Eigen::Vector6d testMeePlusOne = testMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//
-//        // Convert to modified equinoctial elements using direct function.
-//        computedMEE = convertCartesianToModifiedEquinoctialElements( testCartesianElements,
-//                                                                     gravitationalParameter );
-//
-//        // Check if computed elements match the expected values.
-//        // Because two elements are near-zero, a close fraction/percentage check will fail.
-//        // Therefore, 1.0 is added to the elements to avoid this.
-//        computedMeePlusOne = computedMEE + vectorToAdd;
-//        TUDAT_CHECK_MATRIX_CLOSE_FRACTION( computedMeePlusOne, testMeePlusOne, tolerance );
-//    }
 }
 
 
