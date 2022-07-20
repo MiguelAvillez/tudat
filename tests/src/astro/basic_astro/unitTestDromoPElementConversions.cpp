@@ -62,9 +62,9 @@ BOOST_AUTO_TEST_CASE( testConvertCartesianAndKeplerianElementsToDromoPElements )
 
     double gravitationalParameter = 398600.44e9; // Earth's, but any parameter would do.
 
-    for ( int useEnergyElement = 0; useEnergyElement < 1; ++useEnergyElement )
+    for ( int useEnergyElement = 0; useEnergyElement < 2; ++useEnergyElement )
     {
-        for ( int timeTypeIndex = 0; timeTypeIndex < 1; ++timeTypeIndex )
+        for ( int timeTypeIndex = 0; timeTypeIndex < 3; ++timeTypeIndex )
         {
             propagators::TimeElementType timeType;
             if ( timeTypeIndex == 0 )
