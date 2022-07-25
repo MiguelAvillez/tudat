@@ -106,7 +106,7 @@ double convertScaledTimeToPhysicalTime(const double scaledTime,
                                        const double centralBodyGravitationalParameter,
                                        const double unitOfLength)
 {
-    return scaledTime * computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength);
+    return scaledTime * computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength );
 }
 
 //! Computes the energy and zeta3 elements for Dromo(P).
@@ -352,12 +352,14 @@ double convertPhysicalTimeToDromoConstantTimeElement(const double physicalTime,
 
     double constantTimeElement;
 
-    if ( energy == 0 ) // Parabolic orbit
+    const double tolerance = 20.0 * std::numeric_limits< double >::epsilon( );
+
+    if ( std::abs(energy) < tolerance ) // Parabolic orbit
     {
         throw std::runtime_error( "Error in Dromo(P) when converting between time and constant time element, the latter "
                                   "is not defined for parabolic orbits." );
     }
-    else if ( energy < 0 ) // Eccentric orbit
+    else if ( energy < - tolerance ) // Eccentric orbit
     {
         double linearTimeElement = convertPhysicalTimeToDromoLinearTimeElement(
             physicalTime, currentIndependentVariable, dromoElementsExceptTime, centralBodyGravitationalParameter, unitOfLength,
@@ -400,12 +402,14 @@ double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeEl
     double zeta3;
     computeEnergyAndDromoZeta3( dromoElementsExceptTime, usingEnergyElement, energy, zeta3 );
 
-    if ( energy == 0 ) // Parabolic orbit
+    const double tolerance = 20.0 * std::numeric_limits< double >::epsilon( );
+
+    if ( std::abs(energy) < tolerance ) // Parabolic orbit
     {
         throw std::runtime_error( "Error in Dromo(P) when converting between constant time element and time, the former "
                                   "is not defined for parabolic orbits." );
     }
-    else if ( energy < 0 ) // Eccentric orbit
+    else if ( energy < - tolerance ) // Eccentric orbit
     {
         double linearTimeElement = constantTimeElement - computeDromoLinearToConstantTimeElementBias(
             dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement);
@@ -420,8 +424,6 @@ double convertDromoConstantTimeElementToPhysicalTime(const double constantTimeEl
                 dromoElementsExceptTime, currentIndependentVariable, usingEnergyElement );
 
         time = convertScaledTimeToPhysicalTime( scaledTime, centralBodyGravitationalParameter, unitOfLength );
-
-        throw std::runtime_error( "TODO: test constant time element for hyperbolic orbits." );
     }
 
     return time;
@@ -538,7 +540,8 @@ Eigen::Vector8d convertCartesianToDromoElements(const Eigen::Vector6d& cartesian
     int sign = -1; // Can either take the value -1 or 1
     dromoElements( dromoPZeta7Index ) = sign * 0.5 * std::sqrt( 1 + Q0( 0, 0) + Q0( 1, 1) + Q0( 2, 2) );
 
-    const double tolerance = 1e-10;
+    // Define the tolerance of a singularity
+    const double tolerance = 20.0 * std::numeric_limits< double >::epsilon( );
     if ( std::abs( dromoElements( dromoPZeta7Index ) ) > tolerance )
     {
         dromoElements( dromoPZeta4Index ) = ( Q0( 2, 1) - Q0( 1, 2) ) / ( 4 * dromoElements( dromoPZeta7Index ) );
@@ -801,29 +804,30 @@ Eigen::Vector8d convertKeplerianToDromoElements(const Eigen::Vector6d& keplerian
                 std::to_string( currentIndependentVariable ) + ")." );
     }
 
-
     // Extract kepler elements and make them dimensionless (just the semi-major axis)
-    double sma = keplerianElements( semiMajorAxisIndex ) / unitOfLength;
     double ecc = keplerianElements( eccentricityIndex );
     double inc = keplerianElements( inclinationIndex );
     double raan = keplerianElements( longitudeOfAscendingNodeIndex );
     double aop = keplerianElements( argumentOfPeriapsisIndex );
     double trAnom = keplerianElements( trueAnomalyIndex );
 
-    // Check if orbit is not parabolic
-    if ( ecc == 1.0 )
-    {
-        throw std::runtime_error( "Error when converting Keplerian to Dromo(P) elements, equations have singularities for "
-                                  "parabolic orbits. The Dromo(P) elements for parabolic orbits can be computed by converting "
-                                  "from cartesian elements." );
-    }
-
     // Compute dimensionless potential
     double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
     double dimensionlessPerturbingPotential = perturbingPotential * std::pow( unitOfTime, 2 ) / std::pow( unitOfLength, 2 );
 
-    // Compute dimensionless angular momentum norm
-    double angularMomentumNorm = std::sqrt( sma * ( 1 - std::pow( ecc, 2) ) );
+    // Compute dimensionless angular momentum depending on whether orbit is or not parabolic
+    double angularMomentumNorm;
+    if ( ecc == 1.0 )
+    {
+        // Parabolic orbit: compute using dimensionless semi latus rectum
+        angularMomentumNorm = std::sqrt( keplerianElements( semiLatusRectumIndex ) / unitOfLength );
+    }
+    else
+    {
+        // Non-parabolic orbit: compute using dimensionless semi major axis and eccentricity
+        angularMomentumNorm = std::sqrt( keplerianElements( semiMajorAxisIndex ) / unitOfLength *
+                ( 1 - std::pow( ecc, 2) ) );
+    }
 
     double dimensionlessCartesianPositionNorm =
             convertKeplerianToCartesianElements(keplerianElements, centralBodyGravitationalParameter).segment(0, 3).norm() / unitOfLength;
@@ -922,26 +926,56 @@ Eigen::Vector6d convertDromoToCartesianElements(const Eigen::Vector8d dromoEleme
                                                 const double currentIndependentVariable,
                                                 const double unitOfLength,
                                                 const double perturbingPotential,
-                                                const bool usingEnergyElement)
+                                                const bool usingEnergyElement,
+                                                const bool forceQuaternionNormalization )
 {
     // Declaring eventual output vector.
     Eigen::Vector6d cartesianElements;
 
+    // Define the tolerance of a singularity
+    const double singularityTolerance = 20.0 * std::numeric_limits< double >::epsilon( );
+
+    // Extract quaternion elements
+    Eigen::Vector8d normalizedDromoElements = dromoElements;
+    const double normOfQuaternionElements = normalizedDromoElements.segment(dromoPZeta4Index, 4).norm( );
+    if ( std::fabs( normOfQuaternionElements - 1.0 ) > singularityTolerance )
+    {
+        if ( forceQuaternionNormalization )
+        {
+            normalizedDromoElements.segment(dromoPZeta4Index, 4) /= normOfQuaternionElements;
+        }
+        else
+        {
+            // Define the error message.
+            std::stringstream errorMessage;
+            errorMessage << "Error when converting Dromo(P) to cartesian elements: the norm of the quaternion should be equal to one.\n"
+                         << "Norm of the specified quaternion is: " << normOfQuaternionElements - 1.0 << " + 1." << std::endl;
+
+            // Throw exception.
+            throw std::runtime_error( std::runtime_error( errorMessage.str( ) ) );
+        }
+    }
+    // Else, nothing wrong and continue
+
+    double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
+    // Compute dimensionless potential
+    double dimensionlessPerturbingPotential = perturbingPotential * std::pow( unitOfTime, 2 ) / std::pow( unitOfLength, 2 );
+
     double energy;
     double zeta3;
-    computeEnergyAndDromoZeta3( dromoElements, usingEnergyElement, energy, zeta3 );
+    computeEnergyAndDromoZeta3( normalizedDromoElements, usingEnergyElement, energy, zeta3 );
 
-    const double positionNorm = 1 / ( zeta3 * computeDromoS( dromoElements, currentIndependentVariable, zeta3 ) );
+    const double positionNorm = 1 / ( zeta3 * computeDromoS( normalizedDromoElements, currentIndependentVariable, zeta3 ) );
 
-    const double zeta4sq = std::pow( dromoElements( dromoPZeta4Index ), 2 );
-    const double zeta5sq = std::pow( dromoElements( dromoPZeta5Index ), 2 );
-    const double zeta6sq = std::pow( dromoElements( dromoPZeta6Index ), 2 );
-    const double zeta45 = dromoElements( dromoPZeta4Index ) * dromoElements( dromoPZeta5Index );
-    const double zeta46 = dromoElements( dromoPZeta4Index ) * dromoElements( dromoPZeta6Index );
-    const double zeta47 = dromoElements( dromoPZeta4Index ) * dromoElements( dromoPZeta7Index );
-    const double zeta56 = dromoElements( dromoPZeta5Index ) * dromoElements( dromoPZeta6Index );
-    const double zeta57 = dromoElements( dromoPZeta5Index ) * dromoElements( dromoPZeta7Index );
-    const double zeta67 = dromoElements( dromoPZeta6Index ) * dromoElements( dromoPZeta7Index );
+    const double zeta4sq = std::pow( normalizedDromoElements( dromoPZeta4Index ), 2 );
+    const double zeta5sq = std::pow( normalizedDromoElements( dromoPZeta5Index ), 2 );
+    const double zeta6sq = std::pow( normalizedDromoElements( dromoPZeta6Index ), 2 );
+    const double zeta45 = normalizedDromoElements( dromoPZeta4Index ) * normalizedDromoElements( dromoPZeta5Index );
+    const double zeta46 = normalizedDromoElements( dromoPZeta4Index ) * normalizedDromoElements( dromoPZeta6Index );
+    const double zeta47 = normalizedDromoElements( dromoPZeta4Index ) * normalizedDromoElements( dromoPZeta7Index );
+    const double zeta56 = normalizedDromoElements( dromoPZeta5Index ) * normalizedDromoElements( dromoPZeta6Index );
+    const double zeta57 = normalizedDromoElements( dromoPZeta5Index ) * normalizedDromoElements( dromoPZeta7Index );
+    const double zeta67 = normalizedDromoElements( dromoPZeta6Index ) * normalizedDromoElements( dromoPZeta7Index );
 
     Eigen::Matrix3d Q0;
     Q0 << 1 - 2*zeta5sq - 2*zeta6sq, 2*zeta45 - 2*zeta67, 2*zeta46 + 2*zeta57,
@@ -955,12 +989,45 @@ Eigen::Vector6d convertDromoToCartesianElements(const Eigen::Vector8d dromoEleme
 
     // Compute dimensionless velocity and then make it dimensionless
     cartesianElements.segment(3, 3) = QRI * (Eigen::Vector3d() <<
-            computeDromoRadialVelocity( dromoElements, currentIndependentVariable ),
-            computeDromoTransverseVelocity( computeDromoS( dromoElements, currentIndependentVariable, zeta3 ), perturbingPotential ),
-            0).finished() * unitOfLength / computeDromoUnitOfTime( centralBodyGravitationalParameter, unitOfLength );
+            computeDromoRadialVelocity( normalizedDromoElements, currentIndependentVariable ),
+            computeDromoTransverseVelocity( computeDromoS( normalizedDromoElements, currentIndependentVariable, zeta3 ),
+                                            dimensionlessPerturbingPotential ),
+            0).finished() * unitOfLength / unitOfTime;
 
     return cartesianElements;
 }
+
+//Eigen::Vector6d convertDromoToKeplerianElements(const Eigen::Vector8d dromoElements,
+//                                                const double centralBodyGravitationalParameter,
+//                                                const double initialIndependentVariable,
+//                                                const double currentIndependentVariable,
+//                                                const double unitOfLength,
+//                                                const double perturbingPotential,
+//                                                const bool usingEnergyElement)
+//{
+//    // Declaring eventual output vector.
+//    Eigen::Vector6d keplerianElements;
+//
+//    double unitOfTime = computeDromoUnitOfTime(centralBodyGravitationalParameter, unitOfLength);
+//    // Compute dimensionless potential
+//    double dimensionlessPerturbingPotential = perturbingPotential * std::pow( unitOfTime, 2 ) / std::pow( unitOfLength, 2 );
+//
+//    double energy;
+//    double zeta3;
+//    computeEnergyAndDromoZeta3( dromoElements, usingEnergyElement, energy, zeta3 );
+//    double s = computeDromoS( dromoElements, currentIndependentVariable, zeta3 );
+//    double radialVelocityNorm = computeDromoRadialVelocity( dromoElements, currentIndependentVariable );
+//    double transverseVelocityNorm = computeDromoTransverseVelocity( s, dimensionlessPerturbingPotential );
+//
+//    keplerianElements( semiMajorAxisIndex ) = - 1.0 / ( 2.0 * energy) * unitOfLength;
+//    keplerianElements( eccentricityIndex ) = std::sqrt( std::pow( transverseVelocityNorm, 2.0 ) *
+//            ( std::pow( dromoElements(dromoPZeta1Index), 2.0) * std::pow(dromoPZeta2Index, 2.0) - 2.0 * dimensionlessPerturbingPotential ) +
+//            2.0 * dimensionlessPerturbingPotential * std::pow( zeta3, 2.0 ) ) / ( zeta3 * s );
+//    keplerianElements( inclinationIndex ) = std::acos( 1 - 2.0 * std::pow( dromoElements(dromoPZeta4Index), 2 ) -
+//            2.0 * std::pow( dromoElements(dromoPZeta5Index), 2) );
+//    keplerianElements( longitudeOfAscendingNodeIndex ) = std::atan2()
+//
+//}
 
 double convertDromoTimeToPhysicalTime(const Eigen::Vector8d dromoElements,
                                       const double centralBodyGravitationalParameter,
