@@ -155,54 +155,66 @@ std::shared_ptr< numerical_quadrature::NumericalQuadrature< IndependentVariableT
 {
     // Declare eventual output.
     std::shared_ptr< NumericalQuadrature < IndependentVariableType, DependentVariableType > > quadrature;
+    //std::cerr << "Inside quadrature function 1";
 
     // Retrieve requested type of quadrature.
     switch( quadratureSettings->quadratureType_ )
     {
+        //std::cerr << "Inside quadrature function switch";
     case gaussian:
     {
+        //std::cerr << "Inside quadrature function gaussian";
         // Cast dynamic pointer on gaussian quadrature settings.
         std::shared_ptr< GaussianQuadratureSettings< double > > gaussianQuadratureSettings =
                 std::dynamic_pointer_cast< GaussianQuadratureSettings < double > >( quadratureSettings );
-
+        //std::cerr << "Inside quadrature function gaussian 2";
         // Create gaussian quadrature.
         quadrature = std::make_shared< GaussianQuadrature < IndependentVariableType, DependentVariableType > >
                 ( derivativeFunction, gaussianQuadratureSettings->initialIndependentVariable_, finalIndependentVariable,
                   gaussianQuadratureSettings->numberOfNodes_ ) ;
+        //std::cerr << "Inside quadrature function gaussian 3";
         break;
     }
     case trapezoidal:
     {
+        //std::cerr << "Inside quadrature function trap";
         // Cats dynamic pointer on trapezoid quadrature settings.
         std::shared_ptr< TrapezoidQuadratureSettings< double > > trapezoidQuadratureSettings =
                 std::dynamic_pointer_cast< TrapezoidQuadratureSettings< double > >( quadratureSettings );
-
+        //std::cerr << "Inside quadrature function trap 1";
         // Retrieve independent variables at which the values of the derivative function must be given.
         std::vector< IndependentVariableType > independentVariables = trapezoidQuadratureSettings->independentVariables_;
-
+        //std::cerr << "Inside quadrature function trap 2";
         // Evaluate derivative function at each of the independent variable values.
         std::vector< DependentVariableType > dependentVariables;
+        //std::cerr << "Inside quadrature function trap 3";
         for ( unsigned int currentIndependentValue = 0 ; currentIndependentValue < independentVariables.size() ; currentIndependentValue++ )
         {
             dependentVariables.push_back( derivativeFunction( currentIndependentValue ) );
         }
+        //std::cerr << "Inside quadrature function trap 4";
 
         // Create Trapezoid quadrature.
         quadrature = std::make_shared< TrapezoidNumericalQuadrature < IndependentVariableType, DependentVariableType > >
                 ( independentVariables, dependentVariables ) ;
+        //std::cerr << "Inside quadrature function trap 5";
         break;
     }
     default:
+        //std::cerr << "Inside quadrature function default";
         throw std::runtime_error( "Error, quadrature " +  std::to_string( quadratureSettings->quadratureType_ ) + " not found." );
+        //std::cerr << "Inside quadrature function default 2";
     }
-
+    //std::cerr << "Inside quadrature function still";
     // Check that assignment of quadrature went well.
     if ( quadrature == nullptr )
     {
+        //std::cerr << "Inside quadrature function nullptr";
         throw std::runtime_error( "Error while creating quadrature. The resulting quadrature pointer is null." );
     }
 
     // Return numerical quadrature object.
+    //std::cerr << "Inside quadrature function return";
     return quadrature;
 }
 

@@ -117,6 +117,18 @@ public:
         return finalAzimuthAngle_;
     }
 
+    //! Returns the time-of-flight based on the free coefficient (added by Kevin)
+    double computeTimeOfFlightFromFreeCoefficient(const double freeCoefficient)
+    {
+        //std::cerr << "Error before line 1";
+        satisfyBoundaryConditions(freeCoefficient);
+        //std::cerr << "Error after line 1";
+        double currentTimeOfFlight = computeNormalizedTimeOfFlight();
+        //std::cerr << "Error after line 2";
+        return currentTimeOfFlight;
+        //std::cerr << "Error after line 3";
+    }
+
 
 protected:
 

@@ -211,37 +211,49 @@ double SphericalShapingLeg::convertTimeToAzimuth(const double timeSinceDeparture
 
 double SphericalShapingLeg::convertAzimuthToTime( const double currentAzimuthAngle )
 {
+    //std::cerr << "Inside azimuth function";
     if ( currentAzimuthAngle < initialAzimuthAngle_ || currentAzimuthAngle > finalAzimuthAngle_ )
     {
+        //std::cerr << "Azimuth out of bounds";
         throw std::runtime_error( "Error when converting azimuth to time, requested azimuth is outside bounds" );
     }
-
+    //std::cerr << "Still inside azimuth function after bounds";
     // Define the derivative of the time function w.r.t the currentAzimuthAngle angle theta.
     std::function< double( const double ) > derivativeTimeFunction = [ = ] ( const double currentAzimuthAngle ){
 
+        //std::cerr << "Scalar function D before"; 
         double scalarFunctionTimeEquation = computeScalarFunctionD(currentAzimuthAngle);
+        //std::cerr << "Scalar function D after";
 
         // Check that the trajectory is feasible, ie curved toward the central body.
         if ( scalarFunctionTimeEquation < 0.0 )
         {
+            //std::cerr << "D function below 0";
             throw std::runtime_error ( "Error, trajectory not curved toward the central body, and thus not feasible." );
         }
         else
         {
+            //std::cerr << "D function above 0";
             return std::sqrt(computeScalarFunctionD(currentAzimuthAngle) *
                              std::pow( radialDistanceCompositeFunction_->evaluateCompositeFunction( currentAzimuthAngle ), 2.0 )
                              / centralBodyGravitationalParameter_ );
         }
     };
 
+    //std::cerr << "Before quadrature";
+
     // Create numerical quadrature from quadrature settings.
     std::shared_ptr< numerical_quadrature::NumericalQuadrature< double, double > > quadrature =
             numerical_quadrature::createQuadrature(derivativeTimeFunction, quadratureSettings_, currentAzimuthAngle );
+    //std::cerr << "After quadrature";
     double currentTime = quadrature->getQuadrature( );
+    //std::cerr << "After current time";
     if( currentTime != currentTime )
     {
+        //std::cerr << "Nan error";
         throw std::runtime_error( "Error in spherical shaping, converting azimuth to time resulted in NaN value, this could be a result of poorly defined ephemerides or gravitational parameter." );
     }
+    //std::cerr << "End of the function";
 
     return currentTime;
 }
@@ -425,7 +437,9 @@ double SphericalShapingLeg::computeDerivativeScalarFunctionD(double currentAzimu
 
 double SphericalShapingLeg::computeNormalizedTimeOfFlight()
 {
+    //std::cerr << "Inside normalized function";
     return convertAzimuthToTime(finalAzimuthAngle_);
+    //std::cerr << "Inside normalized function, after return statement";
 }
 
 
