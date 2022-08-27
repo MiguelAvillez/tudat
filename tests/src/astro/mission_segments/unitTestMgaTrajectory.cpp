@@ -882,6 +882,11 @@ BOOST_AUTO_TEST_CASE( testMgaSphericalShapingSingleLeg )
 
         transferTrajectory->evaluateTrajectory(nodeTimes, transferLegFreeParameters, transferNodeFreeParameters);
 
+        std::shared_ptr< SphericalShapingLeg > leg = std::dynamic_pointer_cast< SphericalShapingLeg >( transferTrajectory->getLegs().at(0) );
+        std::cerr << "aTOF: " << leg->getLegTimeOfFlight() << std::endl;
+        std::cerr << "mTOF: " << leg->computeTimeOfFlightFromFreeCoefficient( 0.000806256 ) * physical_constants::JULIAN_YEAR << std::endl;
+        std::cerr << "mTOF: " << leg->computeTimeOfFlightFromFreeCoefficient( 0.000900643 ) * physical_constants::JULIAN_YEAR << std::endl;
+
         // Check results consistency w.r.t. Roegiers, T., Application of the Spherical Shaping Method to a Low-Thrust
         // Multiple Asteroid Rendezvous Mission, TU Delft (MSc thesis), 2014
         double expectedDeltaV = 5700.0;

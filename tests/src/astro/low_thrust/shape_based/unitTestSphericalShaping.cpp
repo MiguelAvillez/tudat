@@ -88,6 +88,12 @@ BOOST_AUTO_TEST_CASE( test_spherical_shaping_earth_mars_transfer )
         sphericalShapingLegPointer->updateLegParameters((
                 Eigen::Vector3d( )<< julianDate, julianDate + timeOfFlight, numberOfRevolutions ).finished( ) );
 
+        std::cerr << "aTOF: " << sphericalShapingLegPointer->getLegTimeOfFlight() << std::endl;
+        std::cerr << "mTOF: " << sphericalShapingLegPointer->computeTimeOfFlightFromFreeCoefficient( 0.000806256 ) * physical_constants::JULIAN_YEAR << std::endl;
+        std::cerr << "mTOF: " << sphericalShapingLegPointer->computeTimeOfFlightFromFreeCoefficient( 0.001 ) * physical_constants::JULIAN_YEAR << std::endl;
+        std::cerr << "mTOF: " << sphericalShapingLegPointer->computeTimeOfFlightFromFreeCoefficient( 0.0001 ) * physical_constants::JULIAN_YEAR << std::endl;
+        std::cerr << "mTOF: " << sphericalShapingLegPointer->computeTimeOfFlightFromFreeCoefficient( 100 ) * physical_constants::JULIAN_YEAR << std::endl;
+
         // Initialise peak acceleration
         double peakThrustAcceleration = 0.0;
 

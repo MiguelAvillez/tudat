@@ -469,6 +469,7 @@ void SphericalShapingLeg::iterateToMatchRequiredTimeOfFlight( std::shared_ptr< r
     // free coefficient)
     rootFinder->execute( timeOfFlightFunction, initialGuess );
 
+    std::cerr << initialGuess << " " << coefficientsRadialDistanceFunction_( 2 ) << std::endl;
 }
 
 
