@@ -196,7 +196,6 @@ public:
         captureSemiMajorAxis_( captureSemiMajorAxis ),
         captureEccentricity_( captureEccentricity ){ }
 
-    TransferNodeTypes nodeType_;
     double captureSemiMajorAxis_;
     double captureEccentricity_;
 };
