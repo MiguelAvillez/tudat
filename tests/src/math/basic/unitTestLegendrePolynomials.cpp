@@ -33,6 +33,8 @@
 
 #include "tudat/math/basic/legendrePolynomials.h"
 
+#include <iomanip>
+
 namespace tudat
 {
 namespace unit_tests
@@ -275,6 +277,44 @@ BOOST_AUTO_TEST_CASE( test_Legendre_GeodesyLegendrePolynomialDerivative )
 
     // Check if test values match expected values.
     TUDAT_CHECK_MATRIX_CLOSE_FRACTION( expectedValues, computedTestValues, 1.0e-14 );
+}
+
+BOOST_AUTO_TEST_CASE( test_Legendre_LegendrePolynomialDerivative_BoschFormulation )
+{
+    // Define polynomial parameter.
+    const double polynomialParameter = 0.5;
+    const double polynomialParameterComplement = std::sqrt( 1 - polynomialParameter * polynomialParameter );
+
+    int maxDegree = 3;
+    int maxOrder = 3;
+
+    basic_mathematics::LegendreCache legendreCache = basic_mathematics::LegendreCache( maxDegree, maxOrder, true );
+    legendreCache.update( polynomialParameter );
+
+    std::cerr << std::setprecision(15);
+
+    for ( unsigned int i = 0; i <= maxDegree; ++i )
+    {
+        for ( unsigned int j = 0; j <= i; ++j )
+        {
+            std::cerr << "(" << i << "," << j << "): " << legendreCache.getLegendrePolynomialDerivative( i, j ) * - polynomialParameterComplement <<
+                " (" << legendreCache.getLegendrePolynomial(i, j) << ")" << std::endl;
+        }
+    }
+
+    std::cerr << std::endl;
+
+    legendreCache.resetBoschDerivativeNormalizationTerms( );
+    legendreCache.computeBoschDerivatives( );
+
+    for ( unsigned int i = 0; i <= maxDegree; ++i )
+    {
+        for ( unsigned int j = 0; j <= i; ++j )
+        {
+            std::cerr << "(" << i << "," << j << "): " << legendreCache.getLegendrePolynomialDerivative( i, j ) <<
+                 " (" << legendreCache.getLegendrePolynomial(i, j) << ")" << std::endl;
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END( )

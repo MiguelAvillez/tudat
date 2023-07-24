@@ -188,6 +188,10 @@ public:
 
     double getVerticalLegendreValuesComputationMultipliersTwo( const int degree, const int order );
 
+    void resetBoschDerivativeNormalizationTerms( );
+
+    void computeBoschDerivatives( );
+
 private:
 
     //! Maximum degree of cache.
@@ -245,7 +249,7 @@ private:
     //! update function.
     bool computeSecondDerivatives_;
 
-
+    std::vector< double > boschDerivativeNormalizations_;
 };
 
 
@@ -470,6 +474,11 @@ double computeGeodesyLegendrePolynomialDerivative( const int degree,
                                                    const double polynomialParameter,
                                                    const double currentLegendrePolynomial,
                                                    const double incrementedLegendrePolynomial );
+
+double computeBoschGeodesyLegendrePolynomialDerivative( const double decrementedLegendrePolynomialFactor,
+                                                        const double incrementedLegendrePolynomialFactor,
+                                                        const double decrementedLegendrePolynomial,
+                                                        const double incrementedLegendrePolynomial );
 
 //! Compute second derivative of geodesy-normalized associated Legendre polynomial.
 /*!

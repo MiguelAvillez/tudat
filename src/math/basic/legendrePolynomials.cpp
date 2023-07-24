@@ -328,6 +328,115 @@ double LegendreCache::getVerticalLegendreValuesComputationMultipliersTwo( const 
     return verticalLegendreValuesComputationMultipliersTwo_[ degree * ( maximumOrder_ + 1 ) + order ];
 }
 
+void LegendreCache::resetBoschDerivativeNormalizationTerms( )
+{
+    boschDerivativeNormalizations_.resize( ( maximumDegree_ + 1 ) * ( maximumOrder_ + 1 ) );
+
+    for( int i = 0; i <= maximumDegree_; i++ )
+    {
+        for ( int j = 0; ( ( j <= i ) && ( j <= maximumOrder_ ) ); j++ )
+        {
+            boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j ] = std::sqrt( ( i + j ) * ( i - j + 1 ) );
+        }
+    }
+}
+
+void LegendreCache::computeBoschDerivatives( )
+{
+
+    for ( double l : legendreValues_ )
+        std::cerr << l << "\t";
+    std::cerr << std::endl;
+
+    for( int i = 0; i <= maximumDegree_; i++ )
+    {
+        int jMax = std::min( i, maximumOrder_ );
+        for ( int j = 0; j <= jMax; j++ )
+        {
+            if ( useGeodesyNormalization_ )
+            {
+                double decrementedLegendrePolynomialFactor = TUDAT_NAN, incrementedLegendrePolynomialFactor = TUDAT_NAN;
+                double decrementedLegendrePolynomial = TUDAT_NAN, incrementedLegendrePolynomial = TUDAT_NAN;
+
+                if ( j == 0 && i == 0 )
+                {
+                    decrementedLegendrePolynomialFactor = 0;
+                    decrementedLegendrePolynomial = 0;
+                    incrementedLegendrePolynomialFactor = 0;
+                    incrementedLegendrePolynomial = 0;
+                }
+                else if ( j == 0 && i != 0 )
+                {
+                    decrementedLegendrePolynomialFactor = 0;
+                    decrementedLegendrePolynomial = 0;
+                    incrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j + 1 ] * std::sqrt( 2 );
+                    incrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+                }
+                else if ( j == 1 && i == 1 )
+                {
+                    decrementedLegendrePolynomialFactor = 2;
+                    decrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j - 1 ];
+                    incrementedLegendrePolynomialFactor = 0;
+                    incrementedLegendrePolynomial = 0;
+                }
+                else if ( j == 1 && i != 1 )
+                {
+                    decrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j - 1 ];
+                    decrementedLegendrePolynomialFactor = std::sqrt( i * (  i + 1 ) * 2 );
+                    incrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+                    incrementedLegendrePolynomialFactor = std::sqrt(( i - 1 ) * ( i + 2 ) );
+                }
+                else if ( j == i && i > 1)
+                {
+                    incrementedLegendrePolynomialFactor = 0;
+                    incrementedLegendrePolynomial = 0;
+                    decrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j - 1 ];
+                    decrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j ];
+                }
+                else
+                {
+                    decrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j - 1 ];
+                    decrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j ];
+                    incrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+                    incrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+                }
+//                if ( i == 0 )
+//                {
+//                    decrementedLegendrePolynomialFactor = 0;
+//                    decrementedLegendrePolynomial = 0;
+//                }
+//                else
+//                {
+//                    decrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j - 1 ];
+//                    decrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j ];
+//                }
+//
+//                if ( i == j )
+//                {
+//                    incrementedLegendrePolynomialFactor = 0;
+//                    incrementedLegendrePolynomial = 0;
+//                }
+//                else
+//                {
+//                    incrementedLegendrePolynomial = legendreValues_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+//                    incrementedLegendrePolynomialFactor = boschDerivativeNormalizations_[ i * ( maximumOrder_ + 1 ) + j + 1 ];
+//                }
+
+                std::cerr << "(" << i << "," << j << "): " << decrementedLegendrePolynomialFactor << "\t" <<
+                    decrementedLegendrePolynomial << "\t" << incrementedLegendrePolynomialFactor << "\t" <<
+                    incrementedLegendrePolynomial << std::endl;
+
+                legendreDerivatives_[ i * ( maximumOrder_ + 1 ) + j ] = computeBoschGeodesyLegendrePolynomialDerivative(
+                        decrementedLegendrePolynomialFactor, incrementedLegendrePolynomialFactor,
+                        decrementedLegendrePolynomial, incrementedLegendrePolynomial );
+            }
+
+        }
+    }
+
+    std::cerr << std::endl;
+}
+
 //! Compute unnormalized associated Legendre polynomial.
 double computeLegendrePolynomialFromCache( const int degree,
                                            const int order,
@@ -584,6 +693,14 @@ double computeGeodesyLegendrePolynomialSecondDerivative( const int order,
               currentLegendrePolynomial );
 }
 
+double computeBoschGeodesyLegendrePolynomialDerivative( const double decrementedLegendrePolynomialFactor,
+                                                        const double incrementedLegendrePolynomialFactor,
+                                                        const double decrementedLegendrePolynomial,
+                                                        const double incrementedLegendrePolynomial )
+{
+    return 0.5 * ( decrementedLegendrePolynomialFactor * decrementedLegendrePolynomial -
+        incrementedLegendrePolynomialFactor * incrementedLegendrePolynomial );
+}
 
 //! Compute low degree/order unnormalized Legendre polynomial explicitly.
 double computeLegendrePolynomialExplicit( const int degree,
